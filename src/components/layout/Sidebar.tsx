@@ -11,7 +11,6 @@ import {
   Store,
   Users,
 } from 'lucide-react'
-import { EVENTS } from '@/data/config'
 import { useStore } from '@/store/useStore'
 import { eventStats } from '@/lib/selectors'
 import { cn } from '@/lib/utils'
@@ -22,7 +21,7 @@ const primary = [
 ]
 
 const secondary = [
-  { to: '/app/budget', label: 'Budget', icon: ReceiptIndianRupee },
+  { to: '/app/expenses', label: 'Expenses', icon: ReceiptIndianRupee },
   { to: '/app/activity', label: 'Activity', icon: Sparkles },
   { to: '/app/calendar', label: 'Calendar', icon: Calendar },
   { to: '/app/vendors', label: 'Vendors', icon: Store },
@@ -34,7 +33,7 @@ const secondary = [
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const tasks = useStore((s) => s.tasks)
   const expenses = useStore((s) => s.expenses)
-  const eventList = EVENTS.filter((e) => e.key !== 'common')
+  const eventList = useStore((s) => s.settings.events)
 
   return (
     <div className="flex h-full flex-col">
@@ -56,12 +55,15 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <div>
           <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Events</p>
           <div className="space-y-1">
+            {eventList.length === 0 && (
+              <p className="px-3 py-2 text-xs text-ink-faint">No events yet — add some in Settings.</p>
+            )}
             {eventList.map((e) => {
-              const st = eventStats(e.key, tasks, expenses)
+              const st = eventStats(e.id, tasks, expenses)
               return (
                 <NavLink
-                  key={e.key}
-                  to={`/app/event/${e.key}`}
+                  key={e.id}
+                  to={`/app/event/${e.id}`}
                   onClick={onNavigate}
                   className={({ isActive }) => cn('nav-link group', isActive && 'nav-link-active')}
                 >

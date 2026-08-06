@@ -1,5 +1,4 @@
 import type { EventKey, Expense, Task } from './types'
-import { EVENTS, getEvent } from '@/data/config'
 import { isOverdue, isDueToday, pct } from './utils'
 
 export interface EventStats {
@@ -11,10 +10,9 @@ export interface EventStats {
   cancelled: number
   overdue: number
   taskProgress: number // % completed of non-cancelled
-  budget: number
-  spent: number // sum paid
-  committed: number // sum amount (total cost)
-  budgetUsed: number // % of budget committed
+  total: number // sum of expense amounts for this event
+  paid: number // sum of amounts paid
+  due: number // total - paid
 }
 
 export function eventStats(key: EventKey, tasks: Task[], expenses: Expense[]): EventStats {
@@ -26,9 +24,8 @@ export function eventStats(key: EventKey, tasks: Task[], expenses: Expense[]): E
   const active = t.length - cancelled
   const pending = t.filter((x) => x.status === 'todo' || x.status === 'in_progress').length
   const overdue = t.filter((x) => x.status !== 'completed' && x.status !== 'cancelled' && isOverdue(x.dueDate)).length
-  const spent = e.reduce((sum, x) => sum + x.paid, 0)
-  const committed = e.reduce((sum, x) => sum + x.amount, 0)
-  const budget = getEvent(key).budget
+  const total = e.reduce((sum, x) => sum + x.amount, 0)
+  const paid = e.reduce((sum, x) => sum + x.paid, 0)
   return {
     key,
     totalTasks: t.length,
@@ -38,10 +35,9 @@ export function eventStats(key: EventKey, tasks: Task[], expenses: Expense[]): E
     cancelled,
     overdue,
     taskProgress: pct(completed, active),
-    budget,
-    spent,
-    committed,
-    budgetUsed: pct(committed, budget),
+    total,
+    paid,
+    due: total - paid,
   }
 }
 
@@ -52,10 +48,10 @@ export interface OverallStats {
   overdue: number
   dueToday: number
   progress: number
-  totalBudget: number
-  spent: number
-  committed: number
-  remaining: number
+  totalExpense: number // sum of all expense amounts, across every event
+  paid: number
+  due: number
+  expenseCount: number
 }
 
 export function overallStats(tasks: Task[], expenses: Expense[]): OverallStats {
@@ -69,9 +65,8 @@ export function overallStats(tasks: Task[], expenses: Expense[]): OverallStats {
   const dueToday = tasks.filter(
     (t) => t.status !== 'completed' && t.status !== 'cancelled' && isDueToday(t.dueDate),
   ).length
-  const totalBudget = EVENTS.reduce((s, e) => s + e.budget, 0)
-  const spent = expenses.reduce((s, e) => s + e.paid, 0)
-  const committed = expenses.reduce((s, e) => s + e.amount, 0)
+  const totalExpense = expenses.reduce((s, e) => s + e.amount, 0)
+  const paid = expenses.reduce((s, e) => s + e.paid, 0)
   return {
     totalTasks: tasks.length,
     completed,
@@ -79,9 +74,9 @@ export function overallStats(tasks: Task[], expenses: Expense[]): OverallStats {
     overdue,
     dueToday,
     progress: pct(completed, active),
-    totalBudget,
-    spent,
-    committed,
-    remaining: totalBudget - spent,
+    totalExpense,
+    paid,
+    due: totalExpense - paid,
+    expenseCount: expenses.length,
   }
 }

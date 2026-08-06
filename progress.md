@@ -15,10 +15,13 @@ Last updated: 2026-08-04
 | Routing (React Router) | ✅ | Profile gate + nested app shell |
 | State management (Zustand store) | ✅ | Single source of truth, optimistic updates |
 | Persistence — localStorage fallback | ✅ | Works offline, per-device |
-| Persistence — Supabase cloud sync | ✅ | Auto-detects env vars, realtime subscription, auto-seed |
+| Persistence — Supabase cloud sync | ✅ | Auto-detects env vars, realtime subscription |
 | DB schema (`supabase/schema.sql`) | ✅ | Tables, RLS policies, realtime publication |
-| Sample seeded data | ✅ | ~38 tasks, ~23 expenses, activity feed |
-| Config-driven customization | ✅ | Everything in `src/data/config.ts` ("make it yours") |
+| Blank first-run (no sample data) | ✅ | Starts empty; you add your own, saved automatically |
+| First-run setup wizard | ✅ | Asks wedding date; add/remove/rename events with their own dates |
+| Dynamic events (not fixed) | ✅ | Events are user-defined in setup; add/remove anytime via Settings → Edit |
+| Expense-only tracking (no budgets) | ✅ | Just log expenses; totals roll up per event and across all events |
+| Config-driven customization | ✅ | Profiles in `src/data/config.ts`; events, dates via setup wizard |
 | Responsive layout (desktop/tablet/mobile) | ✅ | Sidebar collapses to drawer on mobile |
 | Loading / empty / error states | ✅ | Skeletons, empty states, cloud-error banner |
 | Toasts + micro-interactions | ✅ | Framer Motion transitions, animated counters/rings |
@@ -36,27 +39,26 @@ Last updated: 2026-08-04
 
 ### Home dashboard — ✅
 - Overall progress ring + wedding countdown.
-- Stat cards: total / completed / pending / overdue tasks; total budget / spent / remaining.
+- Stat cards: total / completed / pending / overdue tasks; total expenses / paid / outstanding.
 - Per-event progress rings.
 - Today & overdue tasks, upcoming events, recent activity, recently completed.
 - Quick-add task & expense.
 
-### Event workspaces (Roka, Kali Puja, Engagement, Haldi, Wedding, Common Planning) — 🟡
+### Event workspaces (user-defined events + Common Planning) — 🟡
 Each event has its own workspace with tabs:
-- **Overview** ✅ — stats, spending donut, "next up", ownership breakdown.
+- **Overview** ✅ — task stats, spending donut, event total/paid/due, "next up", ownership breakdown.
 - **Tasks** ✅ — drag-and-drop Kanban (To Do / In Progress / Completed / Cancelled), priority,
   assignee, due dates, checklists, completion %, search / filter / sort, create / edit / duplicate /
   delete, mark-complete, **confetti at 100%**.
-- **Expenses** ✅ — budget vs committed vs paid, category donut, per-row payment tracking.
+- **Expenses** ✅ — this event's Total / Paid / Outstanding, category donut, per-row payment tracking.
 - **Notes** ✅ — auto-saving scratchpad (local).
 - **Bookings / Checklist / Timeline / Documents / Photos** ⬜ — not yet separate tabs (bookings are
   currently modelled as tasks + expenses).
 
-### Budget — ✅
-- Total / committed / paid / remaining stat cards.
-- Overall budget-health dual bar (paid vs committed vs budget).
-- Budget-vs-spent bar chart by event, spending-by-category donut.
-- Full expense ledger with add / edit / delete.
+### Expenses (no budgets) — ✅
+- Total spend summed across all events; paid / outstanding; events-with-spend count.
+- Spending-by-event bars + spending-by-category donut.
+- Full expense ledger with add / edit / delete. Totals also roll up on each event.
 
 ### Activity feed — ✅
 - Chronological, attributed timeline of every task/expense action.
@@ -67,38 +69,38 @@ Each event has its own workspace with tabs:
 
 ### Settings — ✅
 - Profile switching, sync-mode status + Supabase setup guide.
-- Events & dates summary, "make it your wedding" pointer, reset-to-sample-data.
+- Events & dates summary, "make it your wedding" pointer, clear-all-data.
 
 ---
 
-## ⬜ Pending / not yet built
+## ✅ Sidebar sections (now functional)
 
-These are navigable in the sidebar with a "what's coming" placeholder page, but not yet functional:
+All persist via a dedicated collections store (`src/store/useCollections.ts`, localStorage).
 
-### Vendors — ⬜
-Business name, contact, phone/email/address, services, quoted/final/advance/remaining amounts,
-documents, rating, status (booked/pending/cancelled/completed).
+### Vendors — ✅
+Directory with name, category, phone, linked event, booking status (pending/booked/completed/cancelled),
+notes; add/edit/delete; booked vs pending stats.
 
-### Guests — ⬜
-Guest list by family/friends/bride-side/groom-side/VIP; invitation sent, RSVP, attending, food
-preference, accommodation, gift received, notes.
+### Guests — ✅
+List with side (bride/groom/both), head-count, RSVP (quick-toggle), notes; totals for invites, heads,
+coming, awaiting RSVP; filter by side.
 
-### Calendar — ⬜
-Monthly colour-coded view of events, task deadlines, vendor meetings, payment reminders; drag to
-reschedule; reminder badges.
+### Calendar — ✅
+Month view (prev/next/today) plotting each event on its date in its accent colour; click to open the
+event; "Upcoming" side panel with countdowns.
 
-### Documents — ⬜
-Central storage with folders (Contracts, Bills, Invitations, Designs, Guest Lists, Receipts, Notes);
-upload PDF / image / Excel / Word.
+### Documents — ✅
+Link-based document board grouped into folders (Contracts, Bills, Invitations, Designs, Guest lists);
+each entry opens its share link. (Real file upload deferred — needs Supabase Storage.)
 
-### Shopping — ⬜
-Categories (Bride, Groom, Parents, Decor, Gifts, Accessories, Household); name, budget, actual cost,
-purchased, store, receipt, priority, status.
+### Shopping — ✅
+Buy-list with for-whom, cost, store, purchased toggle, notes; totals for items, purchased, est. cost, spent.
 
 ### Cross-cutting features still pending
+- **Cloud sync for the new collections** ⬜ — vendors/guests/shopping/documents are localStorage-only for now.
 - **Notifications** ⬜ — deadline / payment / overdue / booking reminders.
 - **Analytics page** ⬜ — spending trend, task-completion speed, vendor payments, readiness score
-  (basic charts already exist on Budget & event Overviews).
+  (basic charts already exist on the Expenses page & event Overviews).
 - **Receipt / attachment uploads** ⬜ — expense receipts, task attachments (needs Supabase Storage).
 - **Task comments** ⬜ — per-task discussion thread (checklist + activity log exist; comments don't).
 - **Event sub-tabs** ⬜ — dedicated Bookings / Checklist / Timeline / Photos tabs per event.
@@ -108,8 +110,8 @@ purchased, store, receipt, priority, status.
 
 ## 🧭 How to continue
 
-1. **Make it yours:** edit `src/data/config.ts` (profiles, events, dates, budgets), then
-   Settings → Reset to sample data.
+1. **Make it yours:** set your wedding date & events in the setup wizard (Settings → Events & dates →
+   Edit). Profiles live in `src/data/config.ts`; default events in `src/lib/events.ts`.
 2. **Enable cloud sync:** create a Supabase project, run `supabase/schema.sql`, put the URL + anon
    key in `.env.local`, restart. See `README.md`.
 3. **Build the next section:** Vendors and Guests are the highest-value next pages; both follow the

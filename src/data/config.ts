@@ -1,87 +1,21 @@
-import type { EventConfig, EventKey, ExpenseCategory, Priority, TaskStatus } from '@/lib/types'
+import type { ExpenseCategory, Priority, TaskStatus } from '@/lib/types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  👋 MAKE IT YOURS
-//  This file is the single place to customize the dashboard for YOUR wedding.
-//  Edit the profiles, events, dates and budgets below — everything else (tasks,
-//  expenses, progress, charts) is driven by what you set here.
-//  Tip: keep each profile `id` stable once people start using it; the `id` is how
-//  tasks/expenses remember who created or owns them.
+//  This file defines who's planning. The events themselves (and their dates) are
+//  added/removed by the user in the first-run setup wizard and stored
+//  (see src/lib/settings.ts and src/lib/events.ts). There are no budgets.
+//  Tip: keep each profile `id` stable once in use; tasks & expenses remember
+//  which owner they belong to by that id.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// The wedding is the anchor date; everything counts down to it. (YYYY-MM-DD)
-export const WEDDING_DATE = '2026-12-06'
 
 // The people planning the wedding. Add, remove or rename freely.
 export const USERS = [
-  { id: 'you', name: 'You', role: 'Wedding Planner', emoji: '🙋', color: '#D98A7B' },
-  { id: 'partner', name: 'Partner', role: 'The Other Half', emoji: '💍', color: '#D4AF37' },
-  { id: 'mom', name: 'Mom', role: 'Family', emoji: '👩', color: '#D89CA4' },
-  { id: 'dad', name: 'Dad', role: 'Family', emoji: '👨', color: '#8CA98C' },
+  { id: 'you', name: 'Big I', role: 'The Bride', emoji: '👰', color: '#D4AF37' },
+  { id: 'partner', name: 'Small I', role: "Bride's Sister", emoji: '🙋‍♀️', color: '#D98A7B' },
+  { id: 'mom', name: 'Mummy', role: 'Family', emoji: '👩', color: '#D89CA4' },
+  { id: 'dad', name: 'Papa', role: 'Family', emoji: '👨', color: '#8CA98C' },
 ] as const
-
-export const EVENTS: EventConfig[] = [
-  {
-    key: 'common',
-    name: 'Common Planning',
-    emoji: '💍',
-    tagline: 'Bookings & vendors shared across every function',
-    date: WEDDING_DATE,
-    budget: 1800000,
-    accent: '#D4AF37',
-  },
-  {
-    key: 'roka',
-    name: 'Roka',
-    emoji: '🪔',
-    tagline: 'The families say yes',
-    date: '2026-08-30',
-    budget: 250000,
-    accent: '#D98A7B',
-  },
-  {
-    key: 'kalipuja',
-    name: 'Kali Puja',
-    emoji: '🛕',
-    tagline: 'Blessings before the celebrations',
-    date: '2026-10-19',
-    budget: 180000,
-    accent: '#B87883',
-  },
-  {
-    key: 'engagement',
-    name: 'Engagement',
-    emoji: '💐',
-    tagline: 'The rings & the ring ceremony',
-    date: '2026-11-08',
-    budget: 500000,
-    accent: '#D89CA4',
-  },
-  {
-    key: 'haldi',
-    name: 'Haldi',
-    emoji: '🌼',
-    tagline: 'Turmeric, music & marigolds',
-    date: '2026-12-04',
-    budget: 220000,
-    accent: '#E0A458',
-  },
-  {
-    key: 'wedding',
-    name: 'Wedding',
-    emoji: '🎉',
-    tagline: 'The big day',
-    date: WEDDING_DATE,
-    budget: 3500000,
-    accent: '#D4AF37',
-  },
-]
-
-export const EVENT_ORDER: EventKey[] = ['roka', 'kalipuja', 'engagement', 'haldi', 'wedding']
-
-export function getEvent(key: EventKey): EventConfig {
-  return EVENTS.find((e) => e.key === key) ?? EVENTS[0]
-}
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   'Decoration',

@@ -1,29 +1,21 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search, SlidersHorizontal } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
-import type { EventKey, Priority, Task, TaskStatus } from '@/lib/types'
-import { KANBAN_COLUMNS, PRIORITY_META, STATUS_META } from '@/data/config'
+import type { EventKey, TaskStatus } from '@/lib/types'
+import { KANBAN_COLUMNS, STATUS_META } from '@/data/config'
 import { useStore } from '@/store/useStore'
 import { useUI } from '@/components/layout/UIProvider'
 import { TaskCard } from './TaskCard'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/lib/utils'
 
-type SortKey = 'due' | 'priority' | 'created'
-const PRIORITY_RANK: Record<Priority, number> = { critical: 0, high: 1, medium: 2, low: 3 }
-
 export function KanbanBoard({ eventKey }: { eventKey: EventKey }) {
   const tasks = useStore((s) => s.tasks)
   const moveTask = useStore((s) => s.moveTask)
-  const users = useStore((s) => s.users)
   const { openTask } = useUI()
 
   const [search, setSearch] = useState('')
-  const [assignee, setAssignee] = useState('')
-  const [priority, setPriority] = useState('')
-  const [sort, setSort] = useState<SortKey>('due')
   const [dragOver, setDragOver] = useState<TaskStatus | null>(null)
-  const [showFilters, setShowFilters] = useState(false)
 
   const eventTasks = useMemo(() => {
     let list = tasks.filter((t) => t.eventKey === eventKey)
@@ -31,25 +23,15 @@ export function KanbanBoard({ eventKey }: { eventKey: EventKey }) {
       const q = search.toLowerCase()
       list = list.filter((t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))
     }
-    if (assignee) list = list.filter((t) => t.assignedTo === assignee)
-    if (priority) list = list.filter((t) => t.priority === priority)
-    list = [...list].sort((a, b) => {
-      if (sort === 'priority') return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]
-      if (sort === 'created') return b.createdAt.localeCompare(a.createdAt)
-      // due
-      if (!a.dueDate) return 1
-      if (!b.dueDate) return -1
-      return a.dueDate.localeCompare(b.dueDate)
-    })
-    return list
-  }, [tasks, eventKey, search, assignee, priority, sort])
+    return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  }, [tasks, eventKey, search])
 
   const columns = KANBAN_COLUMNS.map((status) => ({
     status,
     items: eventTasks.filter((t) => t.status === status),
   }))
 
-  const filtersActive = Boolean(search || assignee || priority)
+  const filtersActive = Boolean(search)
 
   return (
     <div>
@@ -64,47 +46,10 @@ export function KanbanBoard({ eventKey }: { eventKey: EventKey }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <button
-          className={cn('btn-outline', showFilters && 'border-champagne text-champagne-deep')}
-          onClick={() => setShowFilters((v) => !v)}
-        >
-          <SlidersHorizontal size={15} />
-          Filters
-          {filtersActive && <span className="h-1.5 w-1.5 rounded-full bg-champagne" />}
-        </button>
         <button className="btn-gold" onClick={() => openTask({ defaultEvent: eventKey })}>
           <Plus size={16} /> Add task
         </button>
       </div>
-
-      {showFilters && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white/70 p-3">
-          <select className="input max-w-[160px]" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
-            <option value="">All assignees</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.emoji} {u.name}
-              </option>
-            ))}
-          </select>
-          <select className="input max-w-[160px]" value={priority} onChange={(e) => setPriority(e.target.value)}>
-            <option value="">All priorities</option>
-            {(Object.keys(PRIORITY_META) as Priority[]).map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_META[p].label}
-              </option>
-            ))}
-          </select>
-          <div className="ml-auto flex items-center gap-2 text-sm text-ink-soft">
-            <span>Sort by</span>
-            <select className="input max-w-[140px]" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
-              <option value="due">Due date</option>
-              <option value="priority">Priority</option>
-              <option value="created">Recently added</option>
-            </select>
-          </div>
-        </div>
-      )}
 
       {/* Board */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

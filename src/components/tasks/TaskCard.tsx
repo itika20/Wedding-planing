@@ -1,11 +1,11 @@
-import { CalendarDays, Check, CheckSquare, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Check, CheckSquare, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { forwardRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { Task } from '@/lib/types'
-import { PRIORITY_META, getEvent } from '@/data/config'
+import { findEvent } from '@/lib/events'
 import { useStore } from '@/store/useStore'
 import { Avatar } from '@/components/ui/Avatar'
-import { cn, fmtDateShort, isOverdue } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 interface Props {
   task: Task
@@ -19,16 +19,21 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
   ref,
 ) {
   const users = useStore((s) => s.users)
+  const events = useStore((s) => s.settings.events)
   const deleteTask = useStore((s) => s.deleteTask)
   const duplicateTask = useStore((s) => s.duplicateTask)
   const updateTask = useStore((s) => s.updateTask)
   const [menu, setMenu] = useState(false)
 
-  const assignee = users.find((u) => u.id === task.assignedTo)
-  const prio = PRIORITY_META[task.priority]
+  const event = findEvent(events, task.eventKey)
   const done = task.checklist.filter((c) => c.done).length
-  const overdue = task.status !== 'completed' && task.status !== 'cancelled' && isOverdue(task.dueDate)
   const isDone = task.status === 'completed'
+
+  // Unique people who ticked a subtask.
+  const checkerIds = Array.from(
+    new Set(task.checklist.filter((c) => c.done && c.checkedBy).map((c) => c.checkedBy as string)),
+  )
+  const checkers = checkerIds.map((id) => users.find((u) => u.id === id)).filter(Boolean)
 
   return (
     <motion.div
@@ -38,26 +43,23 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
       onDragStart={(e) => {
         ;(e as unknown as DragEvent).dataTransfer?.setData('text/task', task.id)
       }}
-      className={cn(
-        'group card cursor-grab p-3.5 active:cursor-grabbing',
-        isDone && 'opacity-80',
-      )}
-      style={{ borderLeft: `3px solid ${prio.color}` }}
+      className={cn('group card cursor-grab p-3.5 active:cursor-grabbing', isDone && 'opacity-80')}
+      style={{ borderLeft: `3px solid ${event.accent}` }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2">
           <button
             onClick={() => updateTask(task.id, { status: isDone ? 'todo' : 'completed' })}
             className={cn(
-              'mt-0.5 grid h-4.5 w-4.5 shrink-0 place-items-center rounded-full border transition',
-              isDone ? 'border-sage-deep bg-sage-deep text-white' : 'border-line hover:border-sage',
+              'mt-0.5 grid shrink-0 place-items-center rounded-full border transition',
+              isDone ? 'border-sage-deep bg-sage-deep text-white' : 'border-line hover:border-champagne',
             )}
             style={{ height: 18, width: 18 }}
             title={isDone ? 'Mark as to-do' : 'Mark complete'}
           >
             {isDone && <Check size={11} />}
           </button>
-          <p className={cn('text-sm font-medium leading-snug text-ink', isDone && 'line-through text-ink-soft')}>
+          <p className={cn('text-sm font-medium leading-snug text-ink', isDone && 'text-ink-soft line-through')}>
             {task.title}
           </p>
         </div>
@@ -87,44 +89,28 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
 
       {task.description && <p className="mt-1.5 line-clamp-2 pl-6 text-xs text-ink-soft">{task.description}</p>}
 
-      <div className="mt-3 flex flex-wrap items-center gap-1.5 pl-6">
-        {showEvent && (
-          <span className="chip bg-ivory text-ink-soft">
-            {getEvent(task.eventKey).emoji} {getEvent(task.eventKey).name}
-          </span>
-        )}
-        <span className="chip" style={{ background: prio.bg, color: prio.color }}>
-          {prio.label}
-        </span>
-        {task.dueDate && (
-          <span className={cn('chip', overdue ? 'bg-clay-soft text-clay' : 'bg-ivory text-ink-soft')}>
-            <CalendarDays size={11} />
-            {fmtDateShort(task.dueDate)}
-          </span>
-        )}
-        {task.checklist.length > 0 && (
-          <span className="chip bg-ivory text-ink-soft">
-            <CheckSquare size={11} />
-            {done}/{task.checklist.length}
-          </span>
-        )}
-      </div>
-
-      <div className="mt-3 flex items-center justify-between pl-6">
-        <div className="flex items-center gap-1.5 text-xs text-ink-faint">
-          {assignee ? (
-            <>
-              <Avatar user={assignee} size={20} />
-              <span>{assignee.name}</span>
-            </>
-          ) : (
-            <span className="text-ink-faint">Unassigned</span>
+      {(showEvent || task.checklist.length > 0 || checkers.length > 0) && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 pl-6">
+          {showEvent && (
+            <span className="chip bg-ivory text-ink-soft">
+              {event.emoji} {event.name}
+            </span>
+          )}
+          {task.checklist.length > 0 && (
+            <span className="chip bg-ivory text-ink-soft">
+              <CheckSquare size={11} />
+              {done}/{task.checklist.length}
+            </span>
+          )}
+          {checkers.length > 0 && (
+            <span className="ml-auto flex items-center -space-x-1.5" title="Ticked subtasks">
+              {checkers.slice(0, 3).map((u) => (
+                <Avatar key={u!.id} user={u} size={20} ring />
+              ))}
+            </span>
           )}
         </div>
-        {!isDone && task.completionPct > 0 && (
-          <span className="text-xs font-semibold text-champagne-deep">{task.completionPct}%</span>
-        )}
-      </div>
+      )}
     </motion.div>
   )
 })

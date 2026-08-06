@@ -1,8 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { Cloud, HardDrive, RefreshCw } from 'lucide-react'
+import { CalendarHeart, Cloud, HardDrive, RefreshCw } from 'lucide-react'
 import { useStore, useCurrentUser } from '@/store/useStore'
 import { Avatar } from '@/components/ui/Avatar'
-import { EVENTS, WEDDING_DATE } from '@/data/config'
 import { fmtDate, relativeTime } from '@/lib/utils'
 
 export function Settings() {
@@ -10,12 +9,15 @@ export function Settings() {
   const setCurrentUser = useStore((s) => s.setCurrentUser)
   const mode = useStore((s) => s.mode)
   const showToast = useStore((s) => s.showToast)
+  const settings = useStore((s) => s.settings)
+  const updateSettings = useStore((s) => s.updateSettings)
   const current = useCurrentUser()
   const navigate = useNavigate()
 
   const resetData = () => {
-    localStorage.removeItem('wedding-dashboard:snapshot:v2')
-    showToast('Local data reset — reloading', 'info')
+    localStorage.removeItem('wedding-dashboard:snapshot:v3')
+    localStorage.removeItem('wedding-dashboard:collections:v1')
+    showToast('Cleared — starting fresh', 'info')
     setTimeout(() => window.location.reload(), 600)
   }
 
@@ -93,38 +95,47 @@ export function Settings() {
 
       {/* Events summary */}
       <section className="card p-6">
-        <h2 className="mb-3 font-display text-lg font-semibold text-ink">Events & dates</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold text-ink">Events & dates</h2>
+          <button className="btn-outline px-3 py-2" onClick={() => updateSettings({ setupDone: false })}>
+            <CalendarHeart size={15} /> Edit
+          </button>
+        </div>
         <div className="divide-y divide-line">
-          {EVENTS.map((e) => (
-            <div key={e.key} className="flex items-center justify-between py-2.5">
+          {settings.events.map((e) => (
+            <div key={e.id} className="flex items-center justify-between py-2.5">
               <span className="flex items-center gap-2 text-sm text-ink">
                 <span className="text-lg">{e.emoji}</span> {e.name}
               </span>
-              <span className="text-sm text-ink-soft">{fmtDate(e.date)}</span>
+              <span className="text-right text-sm text-ink-soft">{fmtDate(e.date || null)}</span>
             </div>
           ))}
+          {settings.events.length === 0 && (
+            <p className="py-3 text-sm text-ink-faint">No events yet — tap Edit to add some.</p>
+          )}
         </div>
         <p className="mt-3 text-xs text-ink-faint">
-          The big day: <span className="font-semibold text-ink">{fmtDate(WEDDING_DATE)}</span>
+          The big day: <span className="font-semibold text-ink">{fmtDate(settings.weddingDate || null)}</span>
         </p>
         <div className="mt-4 rounded-xl border border-line bg-offwhite/60 p-4 text-sm text-ink-soft">
-          <p className="font-semibold text-ink">Make it your wedding</p>
+          <p className="font-semibold text-ink">Add, remove or rename events</p>
           <p className="mt-1">
-            Profiles, events, dates and budgets all live in one file:{' '}
-            <code className="rounded bg-white px-1 py-0.5 text-xs">src/data/config.ts</code>. Edit it, then reset
-            the sample data below to start fresh.
+            Tap <span className="font-medium text-ink">Edit</span> above to manage your events and dates — no code
+            needed. Profiles live in{' '}
+            <code className="rounded bg-white px-1 py-0.5 text-xs">src/data/config.ts</code>.
           </p>
         </div>
       </section>
 
       {/* Danger */}
       <section className="card border-clay-soft p-6">
-        <h2 className="font-display text-lg font-semibold text-ink">Reset local data</h2>
+        <h2 className="font-display text-lg font-semibold text-ink">Clear all data</h2>
         <p className="mb-3 text-sm text-ink-soft">
-          Clears everything stored in this browser and reloads the seed data. {mode === 'cloud' && 'Cloud data is not affected.'}
+          Removes every task and expense stored in this browser and starts from a blank slate.
+          {mode === 'cloud' && ' Cloud data is not affected.'}
         </p>
         <button onClick={resetData} className="btn-outline border-clay text-clay hover:bg-clay-soft/40">
-          <RefreshCw size={15} /> Reset to sample data
+          <RefreshCw size={15} /> Clear all data
         </button>
       </section>
     </div>

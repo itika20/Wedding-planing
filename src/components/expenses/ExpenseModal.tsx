@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { useStore } from '@/store/useStore'
-import { EVENTS, EXPENSE_CATEGORIES } from '@/data/config'
+import { EXPENSE_CATEGORIES } from '@/data/config'
+import { allEvents } from '@/lib/events'
 import type { EventKey, Expense, ExpenseCategory } from '@/lib/types'
 import { inr } from '@/lib/utils'
 
@@ -14,14 +15,16 @@ interface Props {
 
 const METHODS = ['UPI', 'Bank Transfer', 'Cash', 'Card', 'Cheque']
 
-export function ExpenseModal({ open, onClose, expense, defaultEvent = 'wedding' }: Props) {
+export function ExpenseModal({ open, onClose, expense, defaultEvent }: Props) {
+  const events = allEvents(useStore((s) => s.settings.events))
   const addExpense = useStore((s) => s.addExpense)
   const updateExpense = useStore((s) => s.updateExpense)
   const editing = Boolean(expense)
+  const fallbackEvent = defaultEvent || events[1]?.id || 'common'
 
   const [name, setName] = useState('')
   const [category, setCategory] = useState<ExpenseCategory>('Miscellaneous')
-  const [eventKey, setEventKey] = useState<EventKey>(defaultEvent)
+  const [eventKey, setEventKey] = useState<EventKey>(fallbackEvent)
   const [vendor, setVendor] = useState('')
   const [amount, setAmount] = useState('')
   const [paid, setPaid] = useState('')
@@ -44,7 +47,7 @@ export function ExpenseModal({ open, onClose, expense, defaultEvent = 'wedding' 
     } else {
       setName('')
       setCategory('Miscellaneous')
-      setEventKey(defaultEvent)
+      setEventKey(fallbackEvent)
       setVendor('')
       setAmount('')
       setPaid('')
@@ -122,8 +125,8 @@ export function ExpenseModal({ open, onClose, expense, defaultEvent = 'wedding' 
           <div>
             <label className="label">Event</label>
             <select className="input" value={eventKey} onChange={(e) => setEventKey(e.target.value as EventKey)}>
-              {EVENTS.map((ev) => (
-                <option key={ev.key} value={ev.key}>
+              {events.map((ev) => (
+                <option key={ev.id} value={ev.id}>
                   {ev.emoji} {ev.name}
                 </option>
               ))}

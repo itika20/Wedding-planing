@@ -1,14 +1,4 @@
-import {
-  Bar,
-  BarChart,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { Expense, ExpenseCategory } from '@/lib/types'
 import { CATEGORY_COLORS } from '@/data/config'
 import { inr } from '@/lib/utils'
@@ -58,39 +48,5 @@ export function CategoryDonut({ expenses, height = 220 }: { expenses: Expense[];
         ))}
       </div>
     </div>
-  )
-}
-
-export function BudgetBars({
-  data,
-  height = 260,
-}: {
-  data: { name: string; budget: number; spent: number; accent: string }[]
-  height?: number
-}) {
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={4}>
-        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#9A9088' }} axisLine={false} tickLine={false} />
-        <YAxis
-          tickFormatter={(v) => inr(v, { compact: true })}
-          tick={{ fontSize: 11, fill: '#9A9088' }}
-          axisLine={false}
-          tickLine={false}
-          width={56}
-        />
-        <Tooltip
-          formatter={(v: number, key) => [inr(v), key === 'budget' ? 'Budget' : 'Spent']}
-          contentStyle={{ borderRadius: 12, border: '1px solid #EFE6DD', fontSize: 12 }}
-          cursor={{ fill: 'rgba(212,175,55,0.06)' }}
-        />
-        <Bar dataKey="budget" fill="#EFE6DD" radius={[6, 6, 0, 0]} />
-        <Bar dataKey="spent" radius={[6, 6, 0, 0]}>
-          {data.map((d, i) => (
-            <Cell key={i} fill={d.accent} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
   )
 }

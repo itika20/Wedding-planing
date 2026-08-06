@@ -4,17 +4,17 @@ import {
   AlarmClock,
   CalendarClock,
   CheckCircle2,
-  CircleDollarSign,
   ClipboardList,
   ListTodo,
   Plus,
-  TrendingUp,
+  ReceiptIndianRupee,
   Wallet,
 } from 'lucide-react'
 import { useStore, useCurrentUser } from '@/store/useStore'
 import { useUI } from '@/components/layout/UIProvider'
 import { overallStats, eventStats } from '@/lib/selectors'
-import { EVENTS, WEDDING_DATE, getEvent } from '@/data/config'
+import { findEvent } from '@/lib/events'
+import type { EventMeta } from '@/lib/types'
 import { CountUp } from '@/components/ui/CountUp'
 import { ProgressRing } from '@/components/ui/ProgressRing'
 import { StatCard } from '@/components/ui/StatCard'
@@ -30,17 +30,47 @@ export function Home() {
   const navigate = useNavigate()
   const { openTask, openExpense } = useUI()
 
+  const settings = useStore((s) => s.settings)
+  const { weddingDate, events } = settings
+
   const stats = overallStats(tasks, expenses)
-  const days = daysUntil(WEDDING_DATE)
-  const eventList = EVENTS.filter((e) => e.key !== 'common')
+  const days = weddingDate ? daysUntil(weddingDate) : 0
+  const eventList = events
+
+  // ≤4 events → one line; 5+ → two balanced rows (extra card on top).
+  const perRow = eventList.length <= 4 ? Math.max(eventList.length, 1) : Math.ceil(eventList.length / 2)
+  const eventRows: EventMeta[][] = []
+  for (let i = 0; i < eventList.length; i += perRow) eventRows.push(eventList.slice(i, i + perRow))
+
+  const renderEventCard = (e: EventMeta) => {
+    const st = eventStats(e.id, tasks, expenses)
+    const d = e.date
+    return (
+      <motion.button
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        onClick={() => navigate(`/app/event/${e.id}`)}
+        className="card card-hover flex w-full flex-col items-center p-4 text-center"
+      >
+        <ProgressRing value={st.taskProgress} size={78} stroke={7} color={e.accent} label={<span className="text-xl">{e.emoji}</span>} />
+        <p className="mt-2 text-sm font-semibold text-ink">{e.name}</p>
+        <p className="text-xs text-ink-faint">
+          {st.completed}/{st.totalTasks} tasks
+        </p>
+        <p className="mt-0.5 text-[11px] text-ink-faint">
+          {d ? `${daysUntil(d)}d · ` : ''}{inr(st.total, { compact: true })}
+        </p>
+      </motion.button>
+    )
+  }
 
   const todayTasks = tasks
     .filter((t) => t.status !== 'completed' && t.status !== 'cancelled' && (isDueToday(t.dueDate) || isOverdue(t.dueDate)))
     .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''))
     .slice(0, 6)
 
-  const upcoming = [...EVENTS]
-    .filter((e) => e.key !== 'common' && daysUntil(e.date) >= 0)
+  const upcoming = eventList
+    .filter((e) => e.date && daysUntil(e.date) >= 0)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 3)
 
@@ -68,7 +98,7 @@ export function Home() {
               {days > 0 ? (
                 <>
                   Just <span className="font-semibold text-ink">{days} days</span> until the wedding on{' '}
-                  {fmtDateShort(WEDDING_DATE)}. Here's where everything stands.
+                  {fmtDateShort(weddingDate)}. Here's where everything stands.
                 </>
               ) : (
                 "It's celebration time — here's your final overview."
@@ -106,10 +136,10 @@ export function Home() {
         <StatCard index={3} icon={<AlarmClock size={16} />} label="Overdue" value={<CountUp value={stats.overdue} />} sub={stats.overdue ? 'Needs attention' : 'All on track'} accent="#D98A7B" />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <StatCard index={0} icon={<CircleDollarSign size={16} />} label="Total budget" value={<CountUp value={stats.totalBudget} format={(n) => inr(n, { compact: true })} />} sub="Across all events" accent="#D4AF37" />
-        <StatCard index={1} icon={<Wallet size={16} />} label="Money spent" value={<CountUp value={stats.spent} format={(n) => inr(n, { compact: true })} />} sub={`${inr(stats.committed, { compact: true })} committed`} accent="#B87883" />
-        <StatCard index={2} icon={<TrendingUp size={16} />} label="Remaining" value={<CountUp value={stats.remaining} format={(n) => inr(n, { compact: true })} />} sub="Budget still available" accent="#8CA98C" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard index={0} icon={<ReceiptIndianRupee size={16} />} label="Total expenses" value={<CountUp value={stats.totalExpense} format={(n) => inr(n, { compact: true })} />} sub={`${stats.expenseCount} item${stats.expenseCount === 1 ? '' : 's'} across events`} accent="#D4AF37" />
+        <StatCard index={1} icon={<Wallet size={16} />} label="Paid" value={<CountUp value={stats.paid} format={(n) => inr(n, { compact: true })} />} sub="Cleared so far" accent="#5F7A5F" />
+        <StatCard index={2} icon={<Wallet size={16} />} label="Outstanding" value={<CountUp value={stats.due} format={(n) => inr(n, { compact: true })} />} sub="Still to pay" accent="#B87883" />
       </div>
 
       {/* Event progress */}
@@ -120,28 +150,32 @@ export function Home() {
             Common planning →
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {eventList.map((e, i) => {
-            const st = eventStats(e.key, tasks, expenses)
-            return (
-              <motion.button
-                key={e.key}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06 }}
-                onClick={() => navigate(`/app/event/${e.key}`)}
-                className="card card-hover flex flex-col items-center p-4 text-center"
-              >
-                <ProgressRing value={st.taskProgress} size={78} stroke={7} color={e.accent} label={<span className="text-xl">{e.emoji}</span>} />
-                <p className="mt-2 text-sm font-semibold text-ink">{e.name}</p>
-                <p className="text-xs text-ink-faint">
-                  {st.completed}/{st.totalTasks} tasks
-                </p>
-                <p className="mt-0.5 text-[11px] text-ink-faint">{daysUntil(e.date)}d · {inr(st.spent, { compact: true })}</p>
-              </motion.button>
-            )
-          })}
-        </div>
+        {eventList.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-line bg-white/50 px-6 py-8 text-center text-sm text-ink-soft">
+            No events yet. Add your functions in <Link to="/app/settings" className="font-medium text-champagne-deep">Settings</Link>.
+          </div>
+        ) : (
+          <>
+            {/* Mobile: simple 2-up grid */}
+            <div className="grid grid-cols-2 gap-4 sm:hidden">
+              {eventList.map((e) => (
+                <div key={e.id}>{renderEventCard(e)}</div>
+              ))}
+            </div>
+            {/* Larger screens: ≤4 on one full-width line, 5+ split into two balanced full-width rows */}
+            <div className="hidden space-y-4 sm:block">
+              {eventRows.map((row, ri) => (
+                <div key={ri} className="flex gap-4">
+                  {row.map((e) => (
+                    <div key={e.id} className="flex-1">
+                      {renderEventCard(e)}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
       {/* Lower grid */}
@@ -165,10 +199,10 @@ export function Home() {
                     onClick={() => openTask({ task: t })}
                     className="flex w-full items-center gap-3 rounded-xl border border-line bg-white px-3 py-2.5 text-left transition hover:border-champagne/50 hover:shadow-soft"
                   >
-                    <span className="text-lg">{getEvent(t.eventKey).emoji}</span>
+                    <span className="text-lg">{findEvent(events, t.eventKey).emoji}</span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-ink">{t.title}</p>
-                      <p className="text-xs text-ink-faint">{getEvent(t.eventKey).name}</p>
+                      <p className="text-xs text-ink-faint">{findEvent(events, t.eventKey).name}</p>
                     </div>
                     <span className={`chip ${overdue ? 'bg-clay-soft text-clay' : 'bg-amber-soft text-amber'}`}>
                       {overdue ? 'Overdue' : 'Today'}
@@ -185,19 +219,27 @@ export function Home() {
             <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
               <CalendarClock size={15} className="text-champagne-deep" /> Upcoming events
             </h4>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {upcoming.map((e) => (
-                <Link
-                  key={e.key}
-                  to={`/app/event/${e.key}`}
-                  className="rounded-xl border border-line bg-offwhite/50 p-3 transition hover:shadow-soft"
-                >
-                  <div className="text-xl">{e.emoji}</div>
-                  <p className="mt-1 text-sm font-semibold text-ink">{e.name}</p>
-                  <p className="text-xs text-ink-faint">{fmtDateShort(e.date)} · {daysUntil(e.date)}d</p>
-                </Link>
-              ))}
-            </div>
+            {upcoming.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-line bg-offwhite/40 px-3 py-4 text-center text-xs text-ink-faint">
+                No dated events yet — add dates in Settings.
+              </p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-3">
+                {upcoming.map((e) => (
+                  <Link
+                    key={e.id}
+                    to={`/app/event/${e.id}`}
+                    className="rounded-xl border border-line bg-offwhite/50 p-3 transition hover:shadow-soft"
+                  >
+                    <div className="text-xl">{e.emoji}</div>
+                    <p className="mt-1 text-sm font-semibold text-ink">{e.name}</p>
+                    <p className="text-xs text-ink-faint">
+                      {fmtDateShort(e.date)} · {daysUntil(e.date)}d
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -218,7 +260,7 @@ export function Home() {
                   <div key={t.id} className="flex items-center gap-2 text-sm">
                     <CheckCircle2 size={15} className="shrink-0 text-sage-deep" />
                     <span className="flex-1 truncate text-ink-soft line-through">{t.title}</span>
-                    <span className="text-xs">{getEvent(t.eventKey).emoji}</span>
+                    <span className="text-xs">{findEvent(events, t.eventKey).emoji}</span>
                   </div>
                 ))}
               </div>

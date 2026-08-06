@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useStore, useCurrentUser } from '@/store/useStore'
 import { useUI } from './UIProvider'
 import { Avatar } from '@/components/ui/Avatar'
-import { getEvent } from '@/data/config'
+import { findEvent } from '@/lib/events'
 import { inr } from '@/lib/utils'
 
 function greeting() {
@@ -21,6 +21,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
   const mode = useStore((s) => s.mode)
   const tasks = useStore((s) => s.tasks)
   const expenses = useStore((s) => s.expenses)
+  const events = useStore((s) => s.settings.events)
   const setCurrentUser = useStore((s) => s.setCurrentUser)
   const { openTask, openExpense } = useUI()
 
@@ -94,9 +95,9 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
                         }}
                         className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-ivory"
                       >
-                        <span>{getEvent(t.eventKey).emoji}</span>
+                        <span>{findEvent(events, t.eventKey).emoji}</span>
                         <span className="flex-1 truncate text-ink">{t.title}</span>
-                        <span className="text-xs text-ink-faint">{getEvent(t.eventKey).name}</span>
+                        <span className="text-xs text-ink-faint">{findEvent(events, t.eventKey).name}</span>
                       </button>
                     ))}
                   </div>

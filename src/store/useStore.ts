@@ -1,11 +1,22 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Activity, EventKey, Expense, Snapshot, Task, User } from '@/lib/types'
+import type { Activity, EventKey, Expense, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
 import { cloud, loadSnapshot, saveLocal, subscribeToChanges } from '@/lib/db'
+import { loadSettings, saveSettings } from '@/lib/settings'
 import { nowISO } from '@/lib/utils'
-import { STATUS_META } from '@/data/config'
+import { STATUS_META, USERS } from '@/data/config'
 
 const CURRENT_USER_KEY = 'wedding-dashboard:currentUser:v2'
+
+// config.ts is the source of truth for profile identity (name/role/emoji/color).
+// Editing USERS there always drives the display; each profile's dynamic lastActive
+// is preserved from whatever was stored.
+function reconcileUsers(stored: User[]): User[] {
+  return USERS.map((u) => {
+    const existing = stored.find((s) => s.id === u.id)
+    return { ...u, lastActive: existing?.lastActive ?? nowISO() }
+  })
+}
 
 interface StoreState {
   tasks: Task[]
@@ -13,6 +24,7 @@ interface StoreState {
   activity: Activity[]
   users: User[]
   currentUserId: string | null
+  settings: WeddingSettings
   mode: 'cloud' | 'local'
   loading: boolean
   cloudError?: string
@@ -20,6 +32,8 @@ interface StoreState {
 
   init: () => Promise<void>
   refresh: () => Promise<void>
+  completeSetup: (settings: WeddingSettings) => void
+  updateSettings: (patch: Partial<WeddingSettings>) => void
   setCurrentUser: (id: string | null) => void
   showToast: (message: string, tone?: 'success' | 'info' | 'error') => void
   dismissToast: () => void
@@ -72,6 +86,7 @@ export const useStore = create<StoreState>((set, get) => {
     activity: [],
     users: [],
     currentUserId: localStorage.getItem(CURRENT_USER_KEY),
+    settings: loadSettings(),
     mode: 'local',
     loading: true,
     toast: null,
@@ -83,7 +98,7 @@ export const useStore = create<StoreState>((set, get) => {
         tasks: snapshot.tasks,
         expenses: snapshot.expenses,
         activity: snapshot.activity,
-        users: snapshot.users,
+        users: reconcileUsers(snapshot.users),
         mode,
         cloudError,
         loading: false,
@@ -100,8 +115,20 @@ export const useStore = create<StoreState>((set, get) => {
         tasks: snapshot.tasks,
         expenses: snapshot.expenses,
         activity: snapshot.activity,
-        users: snapshot.users,
+        users: reconcileUsers(snapshot.users),
       })
+    },
+
+    completeSetup: (settings) => {
+      const next = { ...settings, setupDone: true }
+      saveSettings(next)
+      set({ settings: next })
+    },
+
+    updateSettings: (patch) => {
+      const next = { ...get().settings, ...patch }
+      saveSettings(next)
+      set({ settings: next })
     },
 
     setCurrentUser: (id) => {

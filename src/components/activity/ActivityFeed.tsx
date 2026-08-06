@@ -1,12 +1,13 @@
 import { useStore } from '@/store/useStore'
 import { Avatar } from '@/components/ui/Avatar'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { getEvent } from '@/data/config'
+import { findEvent } from '@/lib/events'
 import { relativeTime } from '@/lib/utils'
 
 export function ActivityFeed({ limit }: { limit?: number }) {
   const activity = useStore((s) => s.activity)
   const users = useStore((s) => s.users)
+  const events = useStore((s) => s.settings.events)
   const list = limit ? activity.slice(0, limit) : activity
 
   if (list.length === 0) {
@@ -29,7 +30,7 @@ export function ActivityFeed({ limit }: { limit?: number }) {
               </p>
               <p className="mt-0.5 text-xs text-ink-faint">
                 {relativeTime(a.createdAt)}
-                {a.eventKey && <> · {getEvent(a.eventKey).name}</>}
+                {a.eventKey && <> · {findEvent(events, a.eventKey).name}</>}
               </p>
             </div>
           </li>

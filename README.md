@@ -1,10 +1,11 @@
 # 💍 Wedding 101 — Wedding Planning Dashboard
 
 A premium, collaborative wedding-planning workspace **any couple can make their own** — Netflix-style
-family profiles, per-event Kanban task boards, live budget & payment tracking, and progress rings
+family profiles, per-event Kanban task boards, expense tracking that rolls up per event and across all events, and progress rings
 across every function. It ships configured for a multi-event Indian wedding (Roka, Kali Puja,
-Engagement, Haldi, Wedding + shared Common Planning), but the profiles, events, dates and budgets are
-all editable in one file — see [Make it yours](#-make-it-yours).
+Engagement, Haldi, Wedding + shared Common Planning), but you add/remove/rename events and set the
+dates yourself in setup — see [Make it yours](#-make-it-yours). There are no budgets: just log expenses
+and they total up.
 
 Built with **React + TypeScript + Vite + Tailwind + Framer Motion + Recharts**, with **Supabase**
 for real-time cloud sync and a **local-storage fallback** so it runs the moment you install it.
@@ -15,7 +16,7 @@ for real-time cloud sync and a **local-storage fallback** so it runs the moment 
 
 - **Netflix-style profiles** — You, Partner, Mom, Dad by default (fully editable). Pick a profile to
   sign in (no password). Everyone sees & edits everything; the profile just tags who did what.
-- **Home dashboard** — overall progress ring, task & budget stat cards, per-event progress,
+- **Home dashboard** — overall progress ring, task stats + expense totals (spent / paid / outstanding), per-event progress,
   today/overdue tasks, upcoming events, recent activity, recently completed, wedding countdown.
 - **Event workspaces** (Roka · Kali Puja · Engagement · Haldi · Wedding · Common Planning), each with:
   - **Overview** — stats, spending donut, "next up", ownership breakdown
@@ -24,7 +25,7 @@ for real-time cloud sync and a **local-storage fallback** so it runs the moment 
   - **Expenses** — cost + paid + remaining, categories, payment status, per-row payment bars
   - **Notes** — auto-saving scratchpad
   - 🎉 **Confetti** when an event's tasks hit 100%
-- **Budget** — total/committed/paid/remaining, budget-vs-spent bar chart, category donut, full ledger.
+- **Expenses** — total spend (summed across events), per-event breakdown, category donut, full ledger. No budgets.
 - **Activity feed** — every action, attributed to a family member.
 - **Global search** across tasks & expenses. **Quick add** task/expense from anywhere.
 - Loading, empty & error states; animated counters, progress bars, page transitions; responsive.
@@ -36,24 +37,25 @@ npm install
 npm run dev
 ```
 
-Open the printed URL. It runs in **local mode** immediately (data saved in your browser), seeded with
-realistic sample tasks & expenses.
+Open the printed URL. It runs in **local mode** immediately (data saved in your browser) and starts as
+a **blank first-run** — no sample data. A quick **setup wizard** asks for your wedding date and lets you
+add/remove your events, then you pick a profile and start adding tasks & expenses; everything saves automatically.
 
 ## 🎨 Make it yours
 
-Everything specific to a wedding lives in **one file**: [`src/data/config.ts`](src/data/config.ts).
-Edit it, then in the app go to **Settings → Reset to sample data** to start from a clean slate.
+Your **wedding date and events** (add / remove / rename, each with its own date) are set in the in-app
+setup wizard on first run — no code needed. Re-open it anytime via **Settings → Events & dates → Edit**.
+There are no budgets — you just log expenses and they total up per event and overall.
 
-- **`WEDDING_DATE`** — the anchor date everything counts down to.
-- **`USERS`** — the people planning. Rename, re-emoji, add or remove profiles. Keep each `id` stable
-  once in use (tasks/expenses remember owners by `id`).
-- **`EVENTS`** — your functions/ceremonies. Change names, emojis, dates, budgets and accent colours,
-  or swap the Indian-wedding defaults (Roka, Kali Puja, Haldi…) for whatever your wedding has. The
-  sidebar, dashboard, charts and per-event workspaces update automatically.
-- **`EXPENSE_CATEGORIES`, `PRIORITY_META`, `STATUS_META`** — tune the category and label vocabulary.
+Deeper defaults live in code:
 
-The seeded sample tasks & expenses (in `src/lib/seed.ts`) are just examples to explore — reset the
-data once you've made the config yours and start adding your own.
+- **`USERS`** in [`src/data/config.ts`](src/data/config.ts) — the people planning. Rename, re-emoji,
+  add or remove profiles. Keep each `id` stable once in use (tasks/expenses remember owners by `id`).
+- **`DEFAULT_EVENTS`** in [`src/lib/events.ts`](src/lib/events.ts) — the events the wizard pre-fills
+  (fully editable in the wizard). Change these to seed different starting events.
+- **`EXPENSE_CATEGORIES`, `PRIORITY_META`, `STATUS_META`** in `config.ts` — category and label vocabulary.
+
+The app starts empty, so once the config is yours just start adding tasks & expenses.
 
 ## ☁️ Enable cloud sync (shared across the whole family)
 
@@ -69,8 +71,8 @@ connect a free Supabase project:
    VITE_SUPABASE_URL=https://xxxx.supabase.co
    VITE_SUPABASE_ANON_KEY=eyJhbGci...
    ```
-5. Restart `npm run dev`. The topbar badge flips from **Local** to **Synced**, the database
-   auto-seeds once, and changes now sync live across devices.
+5. Restart `npm run dev`. The topbar badge flips from **Local** to **Synced**, the profiles are
+   registered once, and changes now sync live across devices.
 
 > Security note: for a password-less family tool the anon key has full table access via RLS
 > policies. Keep the deployed URL private. Tighten the policies in `schema.sql` if you ever expose it.
@@ -89,12 +91,13 @@ env vars in the host's dashboard for cloud sync in production.
 
 ```
 src/
-  data/config.ts          Users, events, dates, budgets, categories, priority/status metadata
+  data/config.ts          Profiles, event list, categories, priority/status metadata
   lib/
-    types.ts              Domain model (Task, Expense, Activity, User…)
+    types.ts              Domain model (Task, Expense, Activity, User, WeddingSettings…)
+    settings.ts           Wedding date + the user's events (from setup wizard); no budgets
+    events.ts             Event helpers: Common bucket, default events, lookup by id
     supabase.ts           Supabase client (null in local mode)
     db.ts                 Persistence: localStorage cache + cloud CRUD + row mapping + realtime
-    seed.ts               Deterministic sample data
     selectors.ts          Derived stats (event + overall progress, budget rollups)
     utils.ts              cn, INR formatting, date helpers
   store/useStore.ts       Zustand store — single source of truth + all actions + activity logging
@@ -104,9 +107,9 @@ src/
     layout/               AppShell, Sidebar, Topbar, UIProvider (global task/expense modals)
     tasks/                KanbanBoard, TaskCard, TaskModal
     expenses/             ExpenseTable, ExpenseModal
-    charts/               CategoryDonut, BudgetBars (Recharts)
+    charts/               CategoryDonut (Recharts)
     activity/             ActivityFeed
-  pages/                  ProfileSelect, Home, EventWorkspace, Budget, ActivityPage,
+  pages/                  SetupWizard, ProfileSelect, Home, EventWorkspace, Expenses, ActivityPage,
                           Settings, Placeholder (Vendors/Guests/Calendar/Documents/Shopping)
 ```
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { CalendarDays, LayoutGrid, ReceiptIndianRupee, StickyNote, Wallet } from 'lucide-react'
-import { EVENTS, getEvent } from '@/data/config'
+import { findEvent } from '@/lib/events'
 import type { EventKey } from '@/lib/types'
 import { useStore } from '@/store/useStore'
 import { useUI } from '@/components/layout/UIProvider'
@@ -11,12 +11,10 @@ import { KanbanBoard } from '@/components/tasks/KanbanBoard'
 import { ExpenseTable } from '@/components/expenses/ExpenseTable'
 import { CategoryDonut } from '@/components/charts/Charts'
 import { ProgressRing } from '@/components/ui/ProgressRing'
-import { ProgressBar } from '@/components/ui/ProgressBar'
 import { Confetti } from '@/components/ui/Confetti'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn, daysUntil, fmtDate, inr } from '@/lib/utils'
 
-const VALID = new Set(EVENTS.map((e) => e.key))
 type Tab = 'overview' | 'tasks' | 'expenses' | 'notes'
 const TABS: { key: Tab; label: string; icon: typeof LayoutGrid }[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
@@ -29,14 +27,16 @@ export function EventWorkspace() {
   const { key } = useParams<{ key: string }>()
   const tasks = useStore((s) => s.tasks)
   const expenses = useStore((s) => s.expenses)
+  const settings = useStore((s) => s.settings)
   const [tab, setTab] = useState<Tab>('overview')
   const [fireConfetti, setFireConfetti] = useState(false)
   const prevProgress = useRef<number | null>(null)
 
   const eventKey = key as EventKey
+  const isValid = eventKey === 'common' || settings.events.some((e) => e.id === eventKey)
   const st = useMemo(
-    () => (VALID.has(eventKey) ? eventStats(eventKey, tasks, expenses) : null),
-    [eventKey, tasks, expenses],
+    () => (isValid ? eventStats(eventKey, tasks, expenses) : null),
+    [eventKey, isValid, tasks, expenses],
   )
 
   useEffect(() => {
@@ -54,9 +54,10 @@ export function EventWorkspace() {
     prevProgress.current = null
   }, [eventKey])
 
-  if (!VALID.has(eventKey) || !st) return <Navigate to="/app/home" replace />
-  const event = getEvent(eventKey)
-  const days = daysUntil(event.date)
+  if (!isValid || !st) return <Navigate to="/app/home" replace />
+  const event = findEvent(settings.events, eventKey)
+  const eventDate = event.date
+  const days = eventDate ? daysUntil(eventDate) : null
 
   return (
     <div className="space-y-6">
@@ -79,15 +80,18 @@ export function EventWorkspace() {
             </div>
             <div>
               <h1 className="font-display text-3xl font-semibold text-ink">{event.name}</h1>
-              <p className="text-ink-soft">{event.tagline}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-faint">
-                <span className="chip bg-ivory">
-                  <CalendarDays size={12} /> {fmtDate(event.date)}
-                </span>
-                {event.key !== 'common' && (
+                {event.id !== 'common' && (
+                  <span className="chip bg-ivory">
+                    <CalendarDays size={12} /> {eventDate ? fmtDate(eventDate) : 'Date TBD'}
+                  </span>
+                )}
+                {event.id !== 'common' && days !== null && (
                   <span className="chip bg-ivory">{days >= 0 ? `${days} days to go` : 'Completed'}</span>
                 )}
-                <span className="chip bg-ivory">Budget {inr(event.budget, { compact: true })}</span>
+                <span className="chip bg-ivory">
+                  <Wallet size={12} /> {inr(st.total, { compact: true })} spent
+                </span>
               </div>
             </div>
           </div>
@@ -96,13 +100,7 @@ export function EventWorkspace() {
             <div className="min-w-[130px] space-y-3">
               <MiniStat label="Completed" value={`${st.completed}/${st.totalTasks}`} />
               <MiniStat label="Pending" value={String(st.pending)} accent={st.overdue ? '#D98A7B' : undefined} />
-              <div>
-                <div className="mb-1 flex justify-between text-xs text-ink-soft">
-                  <span>Budget used</span>
-                  <span className="font-semibold text-ink">{st.budgetUsed}%</span>
-                </div>
-                <ProgressBar value={st.budgetUsed} color={event.accent} />
-              </div>
+              <MiniStat label="Total spent" value={inr(st.total, { compact: true })} />
             </div>
           </div>
         </div>
@@ -191,16 +189,16 @@ function Overview({ eventKey }: { eventKey: EventKey }) {
         <CategoryDonut expenses={eventExpenses} />
         <div className="mt-5 grid grid-cols-3 gap-3 border-t border-line pt-4 text-center">
           <div>
-            <p className="text-xs text-ink-faint">Committed</p>
-            <p className="font-display text-lg font-semibold text-ink">{inr(st.committed, { compact: true })}</p>
+            <p className="text-xs text-ink-faint">Total</p>
+            <p className="font-display text-lg font-semibold text-ink">{inr(st.total, { compact: true })}</p>
           </div>
           <div>
             <p className="text-xs text-ink-faint">Paid</p>
-            <p className="font-display text-lg font-semibold text-sage-deep">{inr(st.spent, { compact: true })}</p>
+            <p className="font-display text-lg font-semibold text-sage-deep">{inr(st.paid, { compact: true })}</p>
           </div>
           <div>
             <p className="text-xs text-ink-faint">Due</p>
-            <p className="font-display text-lg font-semibold text-clay">{inr(st.committed - st.spent, { compact: true })}</p>
+            <p className="font-display text-lg font-semibold text-clay">{inr(st.due, { compact: true })}</p>
           </div>
         </div>
       </div>
@@ -263,15 +261,15 @@ function SmallCard({ label, value, tone }: { label: string; value: number; tone:
 
 function ExpensesTab({ eventKey }: { eventKey: EventKey }) {
   const expenses = useStore((s) => s.expenses)
+  const tasks = useStore((s) => s.tasks)
   const { openExpense } = useUI()
-  const st = eventStats(eventKey, useStore((s) => s.tasks), expenses)
+  const st = eventStats(eventKey, tasks, expenses)
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <MoneyCard label="Budget" value={st.budget} tone="#D4AF37" />
-        <MoneyCard label="Committed" value={st.committed} tone="#B87883" />
-        <MoneyCard label="Paid" value={st.spent} tone="#5F7A5F" />
-        <MoneyCard label="Remaining" value={st.budget - st.committed} tone="#8CA98C" />
+      <div className="grid grid-cols-3 gap-4">
+        <MoneyCard label="Total for this event" value={st.total} tone="#D4AF37" />
+        <MoneyCard label="Paid" value={st.paid} tone="#5F7A5F" />
+        <MoneyCard label="Outstanding" value={st.due} tone="#B87883" />
       </div>
       <div className="flex justify-end">
         <button className="btn-gold" onClick={() => openExpense({ defaultEvent: eventKey })}>

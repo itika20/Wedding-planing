@@ -1,8 +1,20 @@
 import { supabase, isCloud } from './supabase'
-import { buildSeed } from './seed'
+import { USERS } from '@/data/config'
 import type { Activity, Expense, Snapshot, Task, User } from './types'
 
-const LS_KEY = 'wedding-dashboard:snapshot:v2'
+const LS_KEY = 'wedding-dashboard:snapshot:v3'
+
+// A fresh, first-run workspace: no tasks, expenses or activity yet — the couple
+// adds their own. Profiles come from config so the picker still works.
+function freshSnapshot(): Snapshot {
+  const now = new Date().toISOString()
+  return {
+    tasks: [],
+    expenses: [],
+    activity: [],
+    users: USERS.map((u) => ({ ...u, lastActive: now })),
+  }
+}
 
 /* ----------------------------- local storage ---------------------------- */
 
@@ -166,25 +178,25 @@ export async function loadSnapshot(): Promise<LoadResult> {
     try {
       let cloud = await cloudFetchAll()
       if (cloud && cloud.users.length === 0 && cloud.tasks.length === 0) {
-        // Fresh project — seed it once.
-        const seed = buildSeed()
-        await cloudSeed(seed)
-        cloud = seed
+        // Fresh project — register the profiles once, no sample data.
+        const fresh = freshSnapshot()
+        await cloudSeed(fresh)
+        cloud = fresh
       }
       if (cloud) {
         saveLocal(cloud)
         return { snapshot: cloud, mode: 'cloud' }
       }
-      return { snapshot: loadLocal() ?? buildSeed(), mode: 'local', cloudError: 'Could not reach Supabase — using local data.' }
+      return { snapshot: loadLocal() ?? freshSnapshot(), mode: 'local', cloudError: 'Could not reach Supabase — using local data.' }
     } catch (err: any) {
-      return { snapshot: loadLocal() ?? buildSeed(), mode: 'local', cloudError: err?.message ?? 'Cloud error' }
+      return { snapshot: loadLocal() ?? freshSnapshot(), mode: 'local', cloudError: err?.message ?? 'Cloud error' }
     }
   }
   const local = loadLocal()
   if (local) return { snapshot: local, mode: 'local' }
-  const seed = buildSeed()
-  saveLocal(seed)
-  return { snapshot: seed, mode: 'local' }
+  const fresh = freshSnapshot()
+  saveLocal(fresh)
+  return { snapshot: fresh, mode: 'local' }
 }
 
 // Best-effort single-row cloud writes. Local cache is saved by the store.
