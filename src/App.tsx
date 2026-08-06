@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { AppShell } from '@/components/layout/AppShell'
 import { Toaster } from '@/components/ui/Toast'
@@ -29,7 +28,6 @@ export default function App() {
   const init = useStore((s) => s.init)
   const loading = useStore((s) => s.loading)
   const setupDone = useStore((s) => s.settings.setupDone)
-  const location = useLocation()
 
   useEffect(() => {
     void init()
@@ -52,33 +50,31 @@ export default function App() {
 
   return (
     <>
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname.split('/')[1] || 'root'}>
-          <Route path="/" element={<ProfileSelect />} />
-          <Route
-            path="/app"
-            element={
-              <RequireUser>
-                <AppShell />
-              </RequireUser>
-            }
-          >
-            <Route index element={<Navigate to="/app/home" replace />} />
-            <Route path="home" element={<Home />} />
-            <Route path="event/:key" element={<EventWorkspace />} />
-            <Route path="expenses" element={<Expenses />} />
-            <Route path="budget" element={<Navigate to="/app/expenses" replace />} />
-            <Route path="activity" element={<ActivityPage />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="vendors" element={<Vendors />} />
-            <Route path="guests" element={<Guests />} />
-            <Route path="calendar" element={<CalendarPage />} />
-            <Route path="documents" element={<Documents />} />
-            <Route path="shopping" element={<Shopping />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AnimatePresence>
+      <Routes>
+        <Route path="/" element={<ProfileSelect />} />
+        <Route
+          path="/app"
+          element={
+            <RequireUser>
+              <AppShell />
+            </RequireUser>
+          }
+        >
+          <Route index element={<Navigate to="/app/home" replace />} />
+          <Route path="home" element={<Home />} />
+          <Route path="event/:key" element={<EventWorkspace />} />
+          <Route path="expenses" element={<Expenses />} />
+          <Route path="budget" element={<Navigate to="/app/expenses" replace />} />
+          <Route path="activity" element={<ActivityPage />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="vendors" element={<Vendors />} />
+          <Route path="guests" element={<Guests />} />
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="documents" element={<Documents />} />
+          <Route path="shopping" element={<Shopping />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       <Toaster />
     </>
   )

@@ -59,17 +59,18 @@ export function AppShell() {
             </div>
           )}
           <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <Outlet />
-              </motion.div>
-            </AnimatePresence>
+            {/* Keyed on the path so each navigation remounts and runs its enter
+                animation. No AnimatePresence/exit here on purpose: a shared
+                <Outlet/> under `mode="wait"` can strand the new page at its
+                initial opacity:0 (invisible), which reads as "page not rendering". */}
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Outlet />
+            </motion.div>
           </main>
         </div>
       </div>
