@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
+import type { Session } from '@supabase/supabase-js'
 import type { Activity, EventKey, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
 import { cloud, loadSnapshot, saveLocal, subscribeToChanges } from '@/lib/db'
+import { isCloud, supabase } from '@/lib/supabase'
 import { loadSettings, saveSettings } from '@/lib/settings'
 import { nowISO } from '@/lib/utils'
 import { STATUS_META, USERS } from '@/data/config'
@@ -27,10 +29,16 @@ interface StoreState {
   mode: 'cloud' | 'local'
   loading: boolean
   cloudError?: string
+  // Auth (cloud mode only). In local mode `session` stays null and no gate shows.
+  requiresAuth: boolean // true when cloud sync is on → sign-in required
+  authReady: boolean // initial session check has resolved
+  session: Session | null
+  authError?: string
   toast: { id: string; message: string; tone: 'success' | 'info' | 'error' } | null
 
   init: () => Promise<void>
   refresh: () => Promise<void>
+  signOut: () => Promise<void>
   completeSetup: (settings: WeddingSettings) => void
   updateSettings: (patch: Partial<WeddingSettings>) => void
   setCurrentUser: (id: string | null) => void
@@ -45,11 +53,49 @@ interface StoreState {
 }
 
 let unsubscribe: (() => void) | null = null
+let authListener: { unsubscribe: () => void } | null = null
 
 export const useStore = create<StoreState>((set, get) => {
   const persist = () => {
     const { tasks, activity, users } = get()
     saveLocal({ tasks, activity, users } as Snapshot)
+  }
+
+  // Load the snapshot (local, or cloud once authenticated) + wire realtime.
+  const loadData = async () => {
+    const { snapshot, mode, cloudError } = await loadSnapshot()
+    set({
+      tasks: snapshot.tasks,
+      activity: snapshot.activity,
+      users: reconcileUsers(snapshot.users),
+      mode,
+      cloudError,
+      loading: false,
+    })
+    if (mode === 'cloud') {
+      unsubscribe?.()
+      unsubscribe = subscribeToChanges(() => void get().refresh())
+    }
+  }
+
+  // With a cloud session in hand: check the family allowlist (best-effort — if
+  // the is_family() function / prod policies aren't set up yet, we allow), then
+  // load. Keeps a signed-in but non-allowlisted user out with a clear message.
+  const enterWithSession = async () => {
+    if (supabase) {
+      const { data: ok, error } = await supabase.rpc('is_family')
+      if (!error && ok === false) {
+        await supabase.auth.signOut()
+        set({
+          session: null,
+          authError: 'This account isn’t on the family allowlist. Ask to be added.',
+          loading: false,
+        })
+        return
+      }
+    }
+    set({ authError: undefined })
+    await loadData()
   }
 
   const logActivity = (verb: string, summary: string, eventKey: EventKey | null) => {
@@ -83,23 +129,46 @@ export const useStore = create<StoreState>((set, get) => {
     settings: loadSettings(),
     mode: 'local',
     loading: true,
+    requiresAuth: isCloud,
+    authReady: false,
+    session: null,
     toast: null,
 
     init: async () => {
       set({ loading: true })
-      const { snapshot, mode, cloudError } = await loadSnapshot()
-      set({
-        tasks: snapshot.tasks,
-        activity: snapshot.activity,
-        users: reconcileUsers(snapshot.users),
-        mode,
-        cloudError,
-        loading: false,
-      })
-      if (mode === 'cloud') {
-        unsubscribe?.()
-        unsubscribe = subscribeToChanges(() => void get().refresh())
+
+      // Local mode: no auth gate — the data is device-private already.
+      if (!isCloud || !supabase) {
+        set({ authReady: true })
+        await loadData()
+        return
       }
+
+      // Cloud mode: resolve the session first; the dashboard/data stay gated
+      // until an allowlisted family member is signed in.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      set({ session, authReady: true })
+
+      authListener?.unsubscribe()
+      authListener = supabase.auth.onAuthStateChange((_event, next) => {
+        const had = Boolean(get().session)
+        set({ session: next })
+        if (next && !had) {
+          set({ loading: true })
+          void enterWithSession()
+        } else if (!next && had) {
+          unsubscribe?.()
+          set({ tasks: [], activity: [], currentUserId: null, loading: false })
+        }
+      }).data.subscription
+
+      if (!session) {
+        set({ loading: false }) // → App shows the sign-in screen
+        return
+      }
+      await enterWithSession()
     },
 
     refresh: async () => {
@@ -109,6 +178,12 @@ export const useStore = create<StoreState>((set, get) => {
         activity: snapshot.activity,
         users: reconcileUsers(snapshot.users),
       })
+    },
+
+    signOut: async () => {
+      if (supabase) await supabase.auth.signOut()
+      localStorage.removeItem(CURRENT_USER_KEY)
+      set({ session: null, currentUserId: null })
     },
 
     completeSetup: (settings) => {

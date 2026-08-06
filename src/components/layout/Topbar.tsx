@@ -21,6 +21,8 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
   const tasks = useStore((s) => s.tasks)
   const events = useStore((s) => s.settings.events)
   const setCurrentUser = useStore((s) => s.setCurrentUser)
+  const signOut = useStore((s) => s.signOut)
+  const session = useStore((s) => s.session)
   const { openTask } = useUI()
 
   const [query, setQuery] = useState('')
@@ -143,7 +145,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
                   Settings
                 </button>
                 <button
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-clay hover:bg-clay-soft/40"
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-ivory"
                   onMouseDown={() => {
                     setCurrentUser(null)
                     navigate('/')
@@ -151,6 +153,17 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
                 >
                   Switch profile
                 </button>
+                {session && (
+                  <button
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-clay hover:bg-clay-soft/40"
+                    onMouseDown={() => {
+                      void signOut()
+                      navigate('/')
+                    }}
+                  >
+                    Sign out
+                  </button>
+                )}
               </motion.div>
             )}
           </AnimatePresence>

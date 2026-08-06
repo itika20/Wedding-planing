@@ -8,6 +8,12 @@ export const isCloud = Boolean(url && anon)
 
 export const supabase: SupabaseClient | null = isCloud
   ? createClient(url as string, anon as string, {
-      auth: { persistSession: false },
+      auth: {
+        // Keep the family member signed in and capture the session that comes
+        // back in the URL after a magic-link / OAuth redirect.
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
     })
   : null

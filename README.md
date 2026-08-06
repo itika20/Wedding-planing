@@ -77,11 +77,14 @@ connect a free Supabase project:
    VITE_SUPABASE_URL=https://xxxx.supabase.co
    VITE_SUPABASE_ANON_KEY=eyJhbGci...
    ```
-5. Restart `npm run dev`. The topbar badge flips from **Local** to **Synced**, the profiles are
-   registered once, and changes now sync live across devices.
+5. Restart `npm run dev`. The topbar badge flips from **Local** to **Synced** and changes sync live
+   across devices.
 
-> Security note: for a password-less family tool the anon key has full table access via RLS
-> policies. Keep the deployed URL private. Tighten the policies in `schema.sql` if you ever expose it.
+> ⚠️ **Before you deploy to the internet, read [`SECURITY.md`](SECURITY.md).** `schema.sql` ships with
+> a permissive policy meant for local/dev — anyone with the URL could read/write. For production, turn
+> on Supabase Auth (invite your family), run [`supabase/policies-prod.sql`](supabase/policies-prod.sql),
+> and the app will require a family sign-in. This is the only robust way to keep it family-only, because
+> the anon key is public by design.
 
 ## 🏗️ Build & deploy
 

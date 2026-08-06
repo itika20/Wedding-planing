@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { AppShell } from '@/components/layout/AppShell'
 import { Toaster } from '@/components/ui/Toast'
+import { Login } from '@/pages/Login'
 import { ProfileSelect } from '@/pages/ProfileSelect'
 import { SetupWizard } from '@/pages/SetupWizard'
 import { Home } from '@/pages/Home'
@@ -24,29 +25,42 @@ function RequireUser({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function Loader({ message }: { message: string }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="text-4xl animate-fade-up">💍</div>
+        <div className="h-1 w-40 skeleton" />
+        <p className="text-sm text-ink-soft">{message}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const init = useStore((s) => s.init)
   const loading = useStore((s) => s.loading)
   const setupDone = useStore((s) => s.settings.setupDone)
+  const requiresAuth = useStore((s) => s.requiresAuth)
+  const authReady = useStore((s) => s.authReady)
+  const session = useStore((s) => s.session)
 
   useEffect(() => {
     void init()
   }, [init])
 
-  // First run (or "edit details"): collect the wedding date & budgets before anything else.
+  // Cloud mode: nobody sees the dashboard (or setup) until an allowlisted
+  // family member is signed in. Local mode skips this entirely.
+  if (requiresAuth && !session) {
+    if (!authReady) return <Loader message="Checking your sign-in…" />
+    return <Login />
+  }
+
+  // First run (or "edit details"): collect the wedding date & events before anything else.
   if (!setupDone) return <SetupWizard />
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="text-4xl animate-fade-up">💍</div>
-          <div className="h-1 w-40 skeleton" />
-          <p className="text-sm text-ink-soft">Setting up your wedding workspace…</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <Loader message="Setting up your wedding workspace…" />
+
 
   return (
     <>
