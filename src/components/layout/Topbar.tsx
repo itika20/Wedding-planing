@@ -6,7 +6,6 @@ import { useStore, useCurrentUser } from '@/store/useStore'
 import { useUI } from './UIProvider'
 import { Avatar } from '@/components/ui/Avatar'
 import { findEvent } from '@/lib/events'
-import { inr } from '@/lib/utils'
 
 function greeting() {
   const h = new Date().getHours()
@@ -20,26 +19,23 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
   const user = useCurrentUser()
   const mode = useStore((s) => s.mode)
   const tasks = useStore((s) => s.tasks)
-  const expenses = useStore((s) => s.expenses)
   const events = useStore((s) => s.settings.events)
   const setCurrentUser = useStore((s) => s.setCurrentUser)
-  const { openTask, openExpense } = useUI()
+  const { openTask } = useUI()
 
   const [query, setQuery] = useState('')
-  const [addOpen, setAddOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (q.length < 2) return { tasks: [], expenses: [] }
+    if (q.length < 2) return { tasks: [] }
     return {
-      tasks: tasks.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 5),
-      expenses: expenses.filter((e) => e.name.toLowerCase().includes(q) || e.vendor.toLowerCase().includes(q)).slice(0, 4),
+      tasks: tasks.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 6),
     }
-  }, [query, tasks, expenses])
+  }, [query, tasks])
 
-  const hasResults = results.tasks.length > 0 || results.expenses.length > 0
+  const hasResults = results.tasks.length > 0
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-ivory/80 backdrop-blur-md">
@@ -61,7 +57,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
               ref={searchRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tasks, vendors, expenses…"
+              placeholder="Search tasks…"
               className="input pl-9 pr-8"
             />
             {query && (
@@ -102,24 +98,6 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
                     ))}
                   </div>
                 )}
-                {results.expenses.length > 0 && (
-                  <div className="border-t border-line p-2">
-                    <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Expenses</p>
-                    {results.expenses.map((e) => (
-                      <button
-                        key={e.id}
-                        onMouseDown={() => {
-                          navigate(`/app/event/${e.eventKey}`)
-                          setQuery('')
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-ivory"
-                      >
-                        <span className="flex-1 truncate text-ink">{e.name}</span>
-                        <span className="text-xs font-medium text-ink-soft">{inr(e.amount, { compact: true })}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -135,35 +113,10 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         </div>
 
         {/* Quick add */}
-        <div className="relative">
-          <button className="btn-gold px-3 py-2.5" onClick={() => setAddOpen((v) => !v)} onBlur={() => setTimeout(() => setAddOpen(false), 150)}>
-            <Plus size={16} />
-            <span className="hidden sm:inline">Quick add</span>
-          </button>
-          <AnimatePresence>
-            {addOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                className="absolute right-0 top-12 z-40 w-44 overflow-hidden rounded-xl border border-line bg-white p-1 shadow-lift"
-              >
-                <button
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-ivory"
-                  onMouseDown={() => openTask()}
-                >
-                  ✅ New task
-                </button>
-                <button
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-ivory"
-                  onMouseDown={() => openExpense()}
-                >
-                  💰 New expense
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <button className="btn-gold px-3 py-2.5" onClick={() => openTask()}>
+          <Plus size={16} />
+          <span className="hidden sm:inline">Add task</span>
+        </button>
 
         {/* Profile */}
         <div className="relative">

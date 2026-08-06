@@ -1,11 +1,9 @@
 import { Link } from 'react-router-dom'
-import { Wallet } from 'lucide-react'
+import { ReceiptIndianRupee, Scale, Wallet } from 'lucide-react'
 import { useStore } from '@/store/useStore'
-import { useUI } from '@/components/layout/UIProvider'
 import { allEvents } from '@/lib/events'
 import { eventStats, overallStats } from '@/lib/selectors'
-import { CategoryDonut } from '@/components/charts/Charts'
-import { ExpenseTable } from '@/components/expenses/ExpenseTable'
+import { TaskExpenseList } from '@/components/expenses/TaskExpenseList'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { CountUp } from '@/components/ui/CountUp'
@@ -14,76 +12,66 @@ import { inr } from '@/lib/utils'
 
 export function Expenses() {
   const tasks = useStore((s) => s.tasks)
-  const expenses = useStore((s) => s.expenses)
   const events = allEvents(useStore((s) => s.settings.events))
-  const { openExpense } = useUI()
-  const stats = overallStats(tasks, expenses)
+  const stats = overallStats(tasks)
+  const over = stats.variance > 0
 
-  // Per-event totals, biggest first (only events that have spend).
+  // Per-event budgeted/actual, biggest first (only events that have spend).
   const byEvent = events
-    .map((e) => ({ event: e, total: eventStats(e.id, tasks, expenses).total }))
-    .filter((x) => x.total > 0)
-    .sort((a, b) => b.total - a.total)
-  const maxTotal = byEvent[0]?.total ?? 0
+    .map((e) => ({ event: e, st: eventStats(e.id, tasks) }))
+    .filter((x) => x.st.budgeted > 0 || x.st.actual > 0)
+    .sort((a, b) => Math.max(b.st.actual, b.st.budgeted) - Math.max(a.st.actual, a.st.budgeted))
+  const maxTotal = byEvent.reduce((m, x) => Math.max(m, x.st.actual, x.st.budgeted), 0)
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">Expenses</h1>
-          <p className="text-ink-soft">Everything you spend, totalled across events and per event.</p>
-        </div>
-        <button className="btn-gold" onClick={() => openExpense()}>
-          <Wallet size={16} /> Add expense
-        </button>
+      <div>
+        <h1 className="font-display text-3xl font-semibold text-ink">Expenses</h1>
+        <p className="text-ink-soft">
+          Budgeted vs actual, rolled up from every task — per event and across the whole wedding.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard index={0} icon={<Wallet size={16} />} label="Total expenses" value={<CountUp value={stats.totalExpense} format={(n) => inr(n, { compact: true })} />} sub={`${stats.expenseCount} item${stats.expenseCount === 1 ? '' : 's'}`} accent="#D4AF37" />
-        <StatCard index={1} icon={<Wallet size={16} />} label="Paid" value={<CountUp value={stats.paid} format={(n) => inr(n, { compact: true })} />} sub="Cleared so far" accent="#5F7A5F" />
-        <StatCard index={2} icon={<Wallet size={16} />} label="Outstanding" value={<CountUp value={stats.due} format={(n) => inr(n, { compact: true })} />} sub="Still to pay" accent="#B87883" />
-        <StatCard index={3} icon={<Wallet size={16} />} label="Events with spend" value={<CountUp value={byEvent.length} />} sub={`of ${events.length}`} accent="#8CA98C" />
+        <StatCard index={0} icon={<ReceiptIndianRupee size={16} />} label="Budgeted" value={<CountUp value={stats.budgeted} format={(n) => inr(n, { compact: true })} />} sub={`${stats.expenseTaskCount} task${stats.expenseTaskCount === 1 ? '' : 's'} with a cost`} accent="#D4AF37" />
+        <StatCard index={1} icon={<Wallet size={16} />} label="Actual spent" value={<CountUp value={stats.actual} format={(n) => inr(n, { compact: true })} />} sub="Logged so far" accent="#5F7A5F" />
+        <StatCard index={2} icon={<Scale size={16} />} label={over ? 'Over budget' : 'Under budget'} value={<CountUp value={Math.abs(stats.variance)} format={(n) => inr(n, { compact: true })} />} sub={stats.variance === 0 ? 'Right on budget' : over ? 'Above planned' : 'Below planned'} accent={over ? '#B87883' : '#5F7A5F'} />
+        <StatCard index={3} icon={<ReceiptIndianRupee size={16} />} label="Events with spend" value={<CountUp value={byEvent.length} />} sub={`of ${events.length}`} accent="#8CA98C" />
       </div>
 
-      {expenses.length === 0 ? (
+      {stats.expenseTaskCount === 0 ? (
         <EmptyState
           emoji="💸"
           title="No expenses yet"
-          hint="Add your first expense — it'll roll up here across events, and show on each event too."
-          action={
-            <button className="btn-gold" onClick={() => openExpense()}>
-              <Wallet size={16} /> Add expense
-            </button>
-          }
+          hint="Open any task and add a budget or actual amount — on the task itself, or itemised across its subtasks. Totals roll up here across every event."
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="card p-5">
-              <h3 className="mb-4 font-display text-lg font-semibold text-ink">Spending by event</h3>
-              <div className="space-y-3">
-                {byEvent.map(({ event, total }) => (
+          <div className="card p-5">
+            <h3 className="mb-4 font-display text-lg font-semibold text-ink">Spending by event</h3>
+            <div className="space-y-4">
+              {byEvent.map(({ event, st }) => {
+                const o = st.variance > 0
+                return (
                   <Link key={event.id} to={`/app/event/${event.id}`} className="block">
                     <div className="mb-1 flex items-center justify-between text-sm">
                       <span className="flex items-center gap-2 text-ink">
                         <span>{event.emoji}</span> {event.name}
                       </span>
-                      <span className="font-semibold text-ink">{inr(total, { compact: true })}</span>
+                      <span className="text-ink-soft">
+                        <b className="text-ink">{inr(st.actual, { compact: true })}</b> / {inr(st.budgeted, { compact: true })}
+                      </span>
                     </div>
-                    <ProgressBar value={maxTotal ? (total / maxTotal) * 100 : 0} color={event.accent} />
+                    <ProgressBar value={maxTotal ? (st.actual / maxTotal) * 100 : 0} color={o ? '#B87883' : event.accent} />
                   </Link>
-                ))}
-              </div>
-            </div>
-            <div className="card p-5">
-              <h3 className="mb-4 font-display text-lg font-semibold text-ink">Spending by category</h3>
-              <CategoryDonut expenses={expenses} />
+                )
+              })}
             </div>
           </div>
 
           <div>
-            <h3 className="mb-3 font-display text-lg font-semibold text-ink">All expenses</h3>
-            <ExpenseTable />
+            <h3 className="mb-3 font-display text-lg font-semibold text-ink">All task expenses</h3>
+            <TaskExpenseList showEvent />
           </div>
         </>
       )}

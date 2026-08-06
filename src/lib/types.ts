@@ -4,20 +4,6 @@ export type EventKey = string
 
 export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled'
 export type Priority = 'low' | 'medium' | 'high' | 'critical'
-export type PaymentStatus = 'unpaid' | 'partial' | 'paid'
-
-export type ExpenseCategory =
-  | 'Decoration'
-  | 'Food'
-  | 'Photography'
-  | 'Venue'
-  | 'Jewelry'
-  | 'Makeup'
-  | 'Travel'
-  | 'Gifts'
-  | 'Clothing'
-  | 'Music'
-  | 'Miscellaneous'
 
 export interface User {
   id: string
@@ -34,6 +20,8 @@ export interface ChecklistItem {
   done: boolean
   checkedBy?: string | null // user id of whoever ticked it
   checkedAt?: string | null // ISO
+  budgeted?: number // planned ₹ for this subtask
+  actual?: number // actual ₹ spent on this subtask
 }
 
 export interface Task {
@@ -48,25 +36,13 @@ export interface Task {
   dueDate: string | null // ISO date
   completionPct: number // 0..100
   checklist: ChecklistItem[]
+  // Task-level expense. Used only when no subtask carries an amount — otherwise
+  // the task's expense is the sum of its subtasks (see lib/expenses.ts).
+  budgeted?: number // planned ₹ for the whole task
+  actual?: number // actual ₹ spent
   createdAt: string
   updatedAt: string
   completedAt: string | null
-}
-
-export interface Expense {
-  id: string
-  eventKey: EventKey
-  name: string
-  category: ExpenseCategory
-  vendor: string
-  amount: number
-  paid: number
-  paymentStatus: PaymentStatus
-  paymentMethod: string
-  date: string // ISO date
-  notes: string
-  createdBy: string
-  createdAt: string
 }
 
 export interface Activity {
@@ -97,7 +73,6 @@ export interface WeddingSettings {
 
 export interface Snapshot {
   tasks: Task[]
-  expenses: Expense[]
   activity: Activity[]
   users: User[]
 }

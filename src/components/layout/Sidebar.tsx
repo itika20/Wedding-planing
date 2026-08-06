@@ -32,7 +32,6 @@ const secondary = [
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const tasks = useStore((s) => s.tasks)
-  const expenses = useStore((s) => s.expenses)
   const eventList = useStore((s) => s.settings.events)
 
   return (
@@ -59,7 +58,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               <p className="px-3 py-2 text-xs text-ink-faint">No events yet — add some in Settings.</p>
             )}
             {eventList.map((e) => {
-              const st = eventStats(e.id, tasks, expenses)
+              const st = eventStats(e.id, tasks)
               return (
                 <NavLink
                   key={e.id}

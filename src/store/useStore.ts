@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Activity, EventKey, Expense, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
+import type { Activity, EventKey, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
 import { cloud, loadSnapshot, saveLocal, subscribeToChanges } from '@/lib/db'
 import { loadSettings, saveSettings } from '@/lib/settings'
 import { nowISO } from '@/lib/utils'
@@ -20,7 +20,6 @@ function reconcileUsers(stored: User[]): User[] {
 
 interface StoreState {
   tasks: Task[]
-  expenses: Expense[]
   activity: Activity[]
   users: User[]
   currentUserId: string | null
@@ -43,18 +42,14 @@ interface StoreState {
   deleteTask: (id: string) => void
   duplicateTask: (id: string) => void
   moveTask: (id: string, status: Task['status']) => void
-
-  addExpense: (input: Partial<Expense> & Pick<Expense, 'eventKey' | 'name' | 'amount' | 'category'>) => Expense
-  updateExpense: (id: string, patch: Partial<Expense>) => void
-  deleteExpense: (id: string) => void
 }
 
 let unsubscribe: (() => void) | null = null
 
 export const useStore = create<StoreState>((set, get) => {
   const persist = () => {
-    const { tasks, expenses, activity, users } = get()
-    saveLocal({ tasks, expenses, activity, users } as Snapshot)
+    const { tasks, activity, users } = get()
+    saveLocal({ tasks, activity, users } as Snapshot)
   }
 
   const logActivity = (verb: string, summary: string, eventKey: EventKey | null) => {
@@ -82,7 +77,6 @@ export const useStore = create<StoreState>((set, get) => {
 
   return {
     tasks: [],
-    expenses: [],
     activity: [],
     users: [],
     currentUserId: localStorage.getItem(CURRENT_USER_KEY),
@@ -96,7 +90,6 @@ export const useStore = create<StoreState>((set, get) => {
       const { snapshot, mode, cloudError } = await loadSnapshot()
       set({
         tasks: snapshot.tasks,
-        expenses: snapshot.expenses,
         activity: snapshot.activity,
         users: reconcileUsers(snapshot.users),
         mode,
@@ -113,7 +106,6 @@ export const useStore = create<StoreState>((set, get) => {
       const { snapshot } = await loadSnapshot()
       set({
         tasks: snapshot.tasks,
-        expenses: snapshot.expenses,
         activity: snapshot.activity,
         users: reconcileUsers(snapshot.users),
       })
@@ -168,6 +160,8 @@ export const useStore = create<StoreState>((set, get) => {
         dueDate: input.dueDate ?? null,
         completionPct: input.completionPct ?? 0,
         checklist: input.checklist ?? [],
+        budgeted: input.budgeted ?? 0,
+        actual: input.actual ?? 0,
         createdAt: ts,
         updatedAt: ts,
         completedAt: input.status === 'completed' ? ts : null,
@@ -242,59 +236,6 @@ export const useStore = create<StoreState>((set, get) => {
 
     moveTask: (id, status) => {
       get().updateTask(id, { status })
-    },
-
-    addExpense: (input) => {
-      const uid = get().currentUserId ?? 'you'
-      const amount = input.amount
-      const paid = input.paid ?? 0
-      const expense: Expense = {
-        id: nanoid(10),
-        eventKey: input.eventKey,
-        name: input.name,
-        category: input.category,
-        vendor: input.vendor ?? '',
-        amount,
-        paid,
-        paymentStatus: paid >= amount ? 'paid' : paid > 0 ? 'partial' : 'unpaid',
-        paymentMethod: input.paymentMethod ?? 'UPI',
-        date: input.date ?? nowISO().slice(0, 10),
-        notes: input.notes ?? '',
-        createdBy: uid,
-        createdAt: nowISO(),
-      }
-      set((s) => ({ expenses: [expense, ...s.expenses] }))
-      persist()
-      void cloud.upsertExpense(expense)
-      logActivity('added', `added expense “${expense.name}” (₹${amount.toLocaleString('en-IN')})`, expense.eventKey)
-      touchUser()
-      get().showToast('Expense added')
-      return expense
-    },
-
-    updateExpense: (id, patch) => {
-      let updated: Expense | undefined
-      set((s) => ({
-        expenses: s.expenses.map((e) => {
-          if (e.id !== id) return e
-          const next: Expense = { ...e, ...patch }
-          next.paymentStatus = next.paid >= next.amount ? 'paid' : next.paid > 0 ? 'partial' : 'unpaid'
-          updated = next
-          return next
-        }),
-      }))
-      persist()
-      if (updated) void cloud.upsertExpense(updated)
-      touchUser()
-    },
-
-    deleteExpense: (id) => {
-      const e = get().expenses.find((x) => x.id === id)
-      set((s) => ({ expenses: s.expenses.filter((x) => x.id !== id) }))
-      persist()
-      void cloud.deleteExpense(id)
-      if (e) logActivity('removed', `removed expense “${e.name}”`, e.eventKey)
-      get().showToast('Expense deleted', 'info')
     },
   }
 })

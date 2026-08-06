@@ -8,9 +8,9 @@ import { useStore } from '@/store/useStore'
 import { useUI } from '@/components/layout/UIProvider'
 import { eventStats } from '@/lib/selectors'
 import { KanbanBoard } from '@/components/tasks/KanbanBoard'
-import { ExpenseTable } from '@/components/expenses/ExpenseTable'
-import { CategoryDonut } from '@/components/charts/Charts'
+import { TaskExpenseList } from '@/components/expenses/TaskExpenseList'
 import { ProgressRing } from '@/components/ui/ProgressRing'
+import { ProgressBar } from '@/components/ui/ProgressBar'
 import { Confetti } from '@/components/ui/Confetti'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn, daysUntil, fmtDate, inr } from '@/lib/utils'
@@ -26,7 +26,6 @@ const TABS: { key: Tab; label: string; icon: typeof LayoutGrid }[] = [
 export function EventWorkspace() {
   const { key } = useParams<{ key: string }>()
   const tasks = useStore((s) => s.tasks)
-  const expenses = useStore((s) => s.expenses)
   const settings = useStore((s) => s.settings)
   const [tab, setTab] = useState<Tab>('overview')
   const [fireConfetti, setFireConfetti] = useState(false)
@@ -35,8 +34,8 @@ export function EventWorkspace() {
   const eventKey = key as EventKey
   const isValid = eventKey === 'common' || settings.events.some((e) => e.id === eventKey)
   const st = useMemo(
-    () => (isValid ? eventStats(eventKey, tasks, expenses) : null),
-    [eventKey, isValid, tasks, expenses],
+    () => (isValid ? eventStats(eventKey, tasks) : null),
+    [eventKey, isValid, tasks],
   )
 
   useEffect(() => {
@@ -90,7 +89,7 @@ export function EventWorkspace() {
                   <span className="chip bg-ivory">{days >= 0 ? `${days} days to go` : 'Completed'}</span>
                 )}
                 <span className="chip bg-ivory">
-                  <Wallet size={12} /> {inr(st.total, { compact: true })} spent
+                  <Wallet size={12} /> {inr(st.actual, { compact: true })} of {inr(st.budgeted, { compact: true })}
                 </span>
               </div>
             </div>
@@ -100,7 +99,7 @@ export function EventWorkspace() {
             <div className="min-w-[130px] space-y-3">
               <MiniStat label="Completed" value={`${st.completed}/${st.totalTasks}`} />
               <MiniStat label="Pending" value={String(st.pending)} accent={st.overdue ? '#D98A7B' : undefined} />
-              <MiniStat label="Total spent" value={inr(st.total, { compact: true })} />
+              <MiniStat label="Actual spent" value={inr(st.actual, { compact: true })} />
             </div>
           </div>
         </div>
@@ -149,11 +148,11 @@ function MiniStat({ label, value, accent }: { label: string; value: string; acce
 
 function Overview({ eventKey }: { eventKey: EventKey }) {
   const tasks = useStore((s) => s.tasks)
-  const expenses = useStore((s) => s.expenses)
   const users = useStore((s) => s.users)
-  const { openTask, openExpense } = useUI()
-  const st = eventStats(eventKey, tasks, expenses)
-  const eventExpenses = expenses.filter((e) => e.eventKey === eventKey)
+  const { openTask } = useUI()
+  const st = eventStats(eventKey, tasks)
+  const over = st.variance > 0
+  const usedPct = st.budgeted > 0 ? Math.round((st.actual / st.budgeted) * 100) : 0
 
   // who owns what
   const byOwner = users
@@ -181,26 +180,40 @@ function Overview({ eventKey }: { eventKey: EventKey }) {
 
       <div className="card p-5 lg:col-span-2">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-display text-lg font-semibold text-ink">Spending breakdown</h3>
-          <button className="btn-outline px-3 py-2" onClick={() => openExpense({ defaultEvent: eventKey })}>
-            <Wallet size={15} /> Add expense
-          </button>
+          <h3 className="font-display text-lg font-semibold text-ink">Spending</h3>
+          <span className="text-xs text-ink-faint">
+            {st.expenseTaskCount} task{st.expenseTaskCount === 1 ? '' : 's'} with a cost
+          </span>
         </div>
-        <CategoryDonut expenses={eventExpenses} />
-        <div className="mt-5 grid grid-cols-3 gap-3 border-t border-line pt-4 text-center">
+        <div className="grid grid-cols-3 gap-3 text-center">
           <div>
-            <p className="text-xs text-ink-faint">Total</p>
-            <p className="font-display text-lg font-semibold text-ink">{inr(st.total, { compact: true })}</p>
+            <p className="text-xs text-ink-faint">Budgeted</p>
+            <p className="font-display text-lg font-semibold text-ink">{inr(st.budgeted, { compact: true })}</p>
           </div>
           <div>
-            <p className="text-xs text-ink-faint">Paid</p>
-            <p className="font-display text-lg font-semibold text-sage-deep">{inr(st.paid, { compact: true })}</p>
+            <p className="text-xs text-ink-faint">Actual</p>
+            <p className="font-display text-lg font-semibold text-sage-deep">{inr(st.actual, { compact: true })}</p>
           </div>
           <div>
-            <p className="text-xs text-ink-faint">Due</p>
-            <p className="font-display text-lg font-semibold text-clay">{inr(st.due, { compact: true })}</p>
+            <p className="text-xs text-ink-faint">{over ? 'Over budget' : 'Under budget'}</p>
+            <p className={cn('font-display text-lg font-semibold', over ? 'text-clay' : 'text-sage-deep')}>
+              {inr(Math.abs(st.variance), { compact: true })}
+            </p>
           </div>
         </div>
+        {st.budgeted > 0 ? (
+          <div className="mt-5 border-t border-line pt-4">
+            <div className="mb-1.5 flex items-center justify-between text-xs text-ink-faint">
+              <span>Actual vs budget</span>
+              <span className={cn('font-semibold', over ? 'text-clay' : 'text-ink-soft')}>{usedPct}%</span>
+            </div>
+            <ProgressBar value={Math.min(100, usedPct)} color={over ? '#B87883' : '#5F7A5F'} />
+          </div>
+        ) : (
+          <p className="mt-5 border-t border-line pt-4 text-center text-sm text-ink-soft">
+            No costs yet — add a budget or actual amount inside any task.
+          </p>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -260,23 +273,20 @@ function SmallCard({ label, value, tone }: { label: string; value: number; tone:
 }
 
 function ExpensesTab({ eventKey }: { eventKey: EventKey }) {
-  const expenses = useStore((s) => s.expenses)
   const tasks = useStore((s) => s.tasks)
-  const { openExpense } = useUI()
-  const st = eventStats(eventKey, tasks, expenses)
+  const st = eventStats(eventKey, tasks)
+  const over = st.variance > 0
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-4">
-        <MoneyCard label="Total for this event" value={st.total} tone="#D4AF37" />
-        <MoneyCard label="Paid" value={st.paid} tone="#5F7A5F" />
-        <MoneyCard label="Outstanding" value={st.due} tone="#B87883" />
+        <MoneyCard label="Budgeted" value={st.budgeted} tone="#D4AF37" />
+        <MoneyCard label="Actual spent" value={st.actual} tone="#5F7A5F" />
+        <MoneyCard label={over ? 'Over budget' : 'Under budget'} value={Math.abs(st.variance)} tone={over ? '#B87883' : '#5F7A5F'} />
       </div>
-      <div className="flex justify-end">
-        <button className="btn-gold" onClick={() => openExpense({ defaultEvent: eventKey })}>
-          <Wallet size={16} /> Add expense
-        </button>
-      </div>
-      <ExpenseTable eventKey={eventKey} />
+      <p className="text-sm text-ink-soft">
+        Every cost here comes from a task — open a task to add or change its budget and actual amounts.
+      </p>
+      <TaskExpenseList eventKey={eventKey} />
     </div>
   )
 }

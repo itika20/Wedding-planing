@@ -8,6 +8,7 @@ import {
   ListTodo,
   Plus,
   ReceiptIndianRupee,
+  Scale,
   Wallet,
 } from 'lucide-react'
 import { useStore, useCurrentUser } from '@/store/useStore'
@@ -24,16 +25,16 @@ import { daysUntil, fmtDateShort, inr, isDueToday, isOverdue } from '@/lib/utils
 
 export function Home() {
   const tasks = useStore((s) => s.tasks)
-  const expenses = useStore((s) => s.expenses)
   const users = useStore((s) => s.users)
   const user = useCurrentUser()
   const navigate = useNavigate()
-  const { openTask, openExpense } = useUI()
+  const { openTask } = useUI()
 
   const settings = useStore((s) => s.settings)
   const { weddingDate, events } = settings
 
-  const stats = overallStats(tasks, expenses)
+  const stats = overallStats(tasks)
+  const overBudget = stats.variance > 0
   const days = weddingDate ? daysUntil(weddingDate) : 0
   const eventList = events
 
@@ -43,8 +44,9 @@ export function Home() {
   for (let i = 0; i < eventList.length; i += perRow) eventRows.push(eventList.slice(i, i + perRow))
 
   const renderEventCard = (e: EventMeta) => {
-    const st = eventStats(e.id, tasks, expenses)
+    const st = eventStats(e.id, tasks)
     const d = e.date
+    const hasMoney = st.budgeted > 0 || st.actual > 0
     return (
       <motion.button
         initial={{ opacity: 0, y: 10 }}
@@ -58,7 +60,9 @@ export function Home() {
           {st.completed}/{st.totalTasks} tasks
         </p>
         <p className="mt-0.5 text-[11px] text-ink-faint">
-          {d ? `${daysUntil(d)}d · ` : ''}{inr(st.total, { compact: true })}
+          {d ? `${daysUntil(d)}d` : ''}
+          {d && hasMoney ? ' · ' : ''}
+          {hasMoney ? `${inr(st.actual, { compact: true })} / ${inr(st.budgeted, { compact: true })}` : ''}
         </p>
       </motion.button>
     )
@@ -108,9 +112,6 @@ export function Home() {
               <button className="btn-gold" onClick={() => openTask()}>
                 <Plus size={16} /> Add task
               </button>
-              <button className="btn-outline" onClick={() => openExpense()}>
-                <Wallet size={16} /> Add expense
-              </button>
             </div>
           </div>
           <div className="flex items-center gap-6">
@@ -137,9 +138,9 @@ export function Home() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard index={0} icon={<ReceiptIndianRupee size={16} />} label="Total expenses" value={<CountUp value={stats.totalExpense} format={(n) => inr(n, { compact: true })} />} sub={`${stats.expenseCount} item${stats.expenseCount === 1 ? '' : 's'} across events`} accent="#D4AF37" />
-        <StatCard index={1} icon={<Wallet size={16} />} label="Paid" value={<CountUp value={stats.paid} format={(n) => inr(n, { compact: true })} />} sub="Cleared so far" accent="#5F7A5F" />
-        <StatCard index={2} icon={<Wallet size={16} />} label="Outstanding" value={<CountUp value={stats.due} format={(n) => inr(n, { compact: true })} />} sub="Still to pay" accent="#B87883" />
+        <StatCard index={0} icon={<ReceiptIndianRupee size={16} />} label="Budgeted" value={<CountUp value={stats.budgeted} format={(n) => inr(n, { compact: true })} />} sub={`${stats.expenseTaskCount} task${stats.expenseTaskCount === 1 ? '' : 's'} with a cost`} accent="#D4AF37" />
+        <StatCard index={1} icon={<Wallet size={16} />} label="Actual spent" value={<CountUp value={stats.actual} format={(n) => inr(n, { compact: true })} />} sub="Logged so far" accent="#5F7A5F" />
+        <StatCard index={2} icon={<Scale size={16} />} label={overBudget ? 'Over budget' : 'Under budget'} value={<CountUp value={Math.abs(stats.variance)} format={(n) => inr(n, { compact: true })} />} sub={stats.variance === 0 ? 'Right on budget' : overBudget ? 'Above planned' : 'Below planned'} accent={overBudget ? '#B87883' : '#5F7A5F'} />
       </div>
 
       {/* Event progress */}
@@ -162,12 +163,14 @@ export function Home() {
                 <div key={e.id}>{renderEventCard(e)}</div>
               ))}
             </div>
-            {/* Larger screens: ≤4 on one full-width line, 5+ split into two balanced full-width rows */}
+            {/* Larger screens: ≤4 on one full-width line, 5+ split into two balanced rows.
+                Every card keeps a full row's per-card width; a shorter last row is centred,
+                so partial rows don't stretch their cards wider than the rest. */}
             <div className="hidden space-y-4 sm:block">
               {eventRows.map((row, ri) => (
-                <div key={ri} className="flex gap-4">
+                <div key={ri} className="flex justify-center gap-4">
                   {row.map((e) => (
-                    <div key={e.id} className="flex-1">
+                    <div key={e.id} style={{ width: `calc((100% - ${perRow - 1}rem) / ${perRow})` }}>
                       {renderEventCard(e)}
                     </div>
                   ))}

@@ -1,11 +1,12 @@
-import { Check, CheckSquare, Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Check, CheckSquare, Copy, MoreHorizontal, Pencil, Trash2, Wallet } from 'lucide-react'
 import { forwardRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { Task } from '@/lib/types'
 import { findEvent } from '@/lib/events'
+import { taskExpense } from '@/lib/expenses'
 import { useStore } from '@/store/useStore'
 import { Avatar } from '@/components/ui/Avatar'
-import { cn } from '@/lib/utils'
+import { cn, inr } from '@/lib/utils'
 
 interface Props {
   task: Task
@@ -28,6 +29,8 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
   const event = findEvent(events, task.eventKey)
   const done = task.checklist.filter((c) => c.done).length
   const isDone = task.status === 'completed'
+  const exp = taskExpense(task)
+  const hasExp = exp.budgeted > 0 || exp.actual > 0
 
   // Unique people who ticked a subtask.
   const checkerIds = Array.from(
@@ -89,7 +92,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
 
       {task.description && <p className="mt-1.5 line-clamp-2 pl-6 text-xs text-ink-soft">{task.description}</p>}
 
-      {(showEvent || task.checklist.length > 0 || checkers.length > 0) && (
+      {(showEvent || task.checklist.length > 0 || checkers.length > 0 || hasExp) && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5 pl-6">
           {showEvent && (
             <span className="chip bg-ivory text-ink-soft">
@@ -100,6 +103,15 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
             <span className="chip bg-ivory text-ink-soft">
               <CheckSquare size={11} />
               {done}/{task.checklist.length}
+            </span>
+          )}
+          {hasExp && (
+            <span
+              className="chip bg-ivory text-ink-soft"
+              title={`Budget ${inr(exp.budgeted)} · Actual ${inr(exp.actual)}`}
+            >
+              <Wallet size={11} />
+              {inr(exp.actual || exp.budgeted, { compact: true })}
             </span>
           )}
           {checkers.length > 0 && (

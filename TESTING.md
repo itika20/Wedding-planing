@@ -1,6 +1,6 @@
 # 🧪 Wedding 101 — Testing Checklist
 
-A feature-by-feature walkthrough for testing the app and noting what to fix. The app now starts as a
+A feature-by-feature walkthrough for testing the app and noting what to fix. The app starts as a
 **blank first-run** (no sample data) — you add everything yourself and it's saved automatically.
 
 ## Run it
@@ -29,50 +29,68 @@ Legend: ✅ built & ready to test · ⬜ intentionally a stub (not a bug).
 - [ ] Clicking a card signs in and lands on Home.
 - [ ] Top-right avatar reflects who you picked.
 
-## 2. Home dashboard ✅
-- [ ] Greeting shows your name; wedding countdown + overall progress ring animate.
-- [ ] Stat cards: Total / Completed / Pending / Overdue tasks; Total expenses / Paid / Outstanding.
-- [ ] On first run everything reads 0 / empty (that's expected).
-- [ ] Event progress rings (Roka, Kali Puja, Engagement, Haldi, Wedding) — click → opens that event.
-- [ ] "Today & overdue", "Upcoming events", "Recent activity", "Recently completed" populate as you add data.
-- [ ] **Add task** / **Add expense** buttons open the popups.
+## 2. Navigation (regression) ✅
+- [ ] Click every sidebar link (Home, Common Planning, each event, Expenses, Activity, Calendar,
+      Vendors, Guests, Shopping, Documents, Settings) → the page **renders** (no blank/invisible page).
+- [ ] Rapidly click between several links → each destination is fully visible, never stuck faded out.
+- [ ] Mobile drawer links navigate and close the drawer.
 
-## 3. Event workspace (open any event) ✅
-Test the four tabs:
-- [ ] **Overview** — stats, spending donut, "Next up", "Who's on it".
-- [ ] **Tasks** — Kanban board (see §4).
-- [ ] **Expenses** — this event's Total / Paid / Outstanding + expense table (see §5).
-- [ ] **Notes** — type; confirm it auto-saves ("Saved ✓").
-- [ ] Header progress ring + "spent" chip update as tasks/expenses change (no budget).
+## 3. Home dashboard ✅
+- [ ] Greeting shows your name; wedding countdown + overall progress ring animate.
+- [ ] Task stat cards: Total / Completed / Pending / Overdue.
+- [ ] Money stat cards: **Budgeted / Actual spent / Over-or-Under budget** (variance).
+- [ ] On first run everything reads 0 / empty (that's expected).
+- [ ] **Event progress** cards: ≤4 events sit on one line; 5+ split into two rows (e.g. 3 above, 2 below).
+      **Every card is the same size** and a short last row is **centred** — no card is wider than the rest.
+- [ ] Each event card shows its **actual / budgeted** figure (once a task in it has a cost).
+- [ ] Only an **Add task** button (there is no "Add expense" — expenses live on tasks).
+- [ ] "Today & overdue", "Upcoming events", "Recent activity", "Recently completed" populate as you add data.
 
 ## 4. Tasks / Kanban — test hard ✅
+- [ ] **Add task** — minimal modal: Title, Description, **Expense (optional)**, Subtasks.
 - [ ] **Drag a card** across To Do → In Progress → Completed → Cancelled.
 - [ ] Click the **circle** on a card to mark complete / undo.
-- [ ] **Add task** — title, assignee, priority, due date, checklist; it appears in the right column.
 - [ ] **⋯ menu** on a card → Edit, Duplicate, Delete.
 - [ ] **Search / Filters / Sort** narrow the board.
+- [ ] A card shows a small **₹ chip** when the task has a cost, and a `n/n` chip for subtasks.
 - [ ] Complete every task in an event → **confetti fires** at 100%.
 
-## 5. Expenses ✅
-- [ ] **Add expense** — name, category, amount, paid, method, date.
-- [ ] Payment chip (Paid / Partial / Unpaid) + payment bar are correct.
-- [ ] Edit / delete a row; totals update.
+## 5. Task expenses — budgeted vs. actual ✅ (the new core)
+- [ ] In the task modal, set **Budgeted** and **Actual cost** for the whole task → footer shows the summary.
+- [ ] Add subtasks; give a subtask its own **Budget** / **Actual** amounts.
+- [ ] As soon as any subtask has an amount, the **task-level fields go read-only** and show the **sum**
+      of the subtasks ("Summed from subtasks") — i.e. subtasks override the task-level figures.
+- [ ] Remove all subtask amounts → the task-level fields become editable again.
+- [ ] Click a subtask's **text** to rename it inline (no edit button); tick it → your name shows next to it.
+- [ ] Save, reopen the task → all amounts persist.
 
-## 6. Expenses page ✅
-- [ ] Total expenses (summed across events) / Paid / Outstanding / events-with-spend cards.
-- [ ] "Spending by event" bars + "Spending by category" donut + full ledger. No budgets anywhere.
+## 6. Event workspace (open any event) ✅
+- [ ] **Overview** — task stats; **Spending** card with Budgeted / Actual / Variance and an
+      "actual vs budget" bar; "Next up"; "Who's on it".
+- [ ] **Tasks** — Kanban board (see §4).
+- [ ] **Expenses** — **read-only** roll-up: this event's Budgeted / Actual / Variance, plus a list of the
+      tasks that carry a cost. Clicking a row opens that task to edit its amounts (no "add expense" here).
+- [ ] **Notes** — type; confirm it auto-saves ("Saved ✓").
+- [ ] Header "actual of budgeted" chip + mini-stats update as task amounts change.
 
-## 7. Activity · Search · Quick-add ✅
+## 7. Expenses page (Common) ✅
+- [ ] Cards: **Budgeted / Actual spent / Over-or-Under budget / Events with spend**.
+- [ ] "Spending by event" bars show each event's **actual / budgeted**; bar turns red when over budget.
+- [ ] "All task expenses" lists every costed task across events (with an event tag + a "subtasks" badge
+      when itemised); variance is `+` red over budget, `−` green under. Click a row → opens the task.
+- [ ] With no costs anywhere, a friendly empty state explains where to add amounts. Everything is read-only.
+
+## 8. Activity · Search · Quick-add ✅
 - [ ] Sidebar → **Activity**: timeline attributed to the right person.
-- [ ] **Top search**: type a task/expense name → results → clicking jumps to it.
-- [ ] **Quick add** (top-right) → New task / New expense from anywhere.
+- [ ] **Top search**: type a task name → results → clicking jumps to it.
+- [ ] **Add task** (top-right) opens the task modal from anywhere.
 
-## 8. Settings ✅
+## 9. Settings ✅
 - [ ] Switch profiles; "Back to profile screen".
 - [ ] Sync status card (says **Local** until Supabase is configured).
 - [ ] **Clear all data** — wipes everything back to a blank slate (use freely while testing).
 
-## 9. Sidebar sections ✅ (now functional)
+## 10. Sidebar sections ✅
 - [ ] **Vendors** — add/edit/delete; booking status; booked vs pending stats.
 - [ ] **Guests** — add guests with side + head-count; quick RSVP toggle; totals + side filter.
 - [ ] **Calendar** — month view plots your events on their dates; click one to open it; Upcoming panel.
@@ -80,19 +98,22 @@ Test the four tabs:
 - [ ] **Documents** — add a doc with a share link, grouped into folders; "Open" launches the link.
 - [ ] These persist locally (their own store) — reload and they're still there.
 
-## 10. Responsive / mobile ✅
+## 11. Responsive / mobile ✅
 - [ ] Narrow the window → sidebar collapses to a hamburger drawer; layout reflows.
+- [ ] Event progress cards drop to a 2-up grid on mobile.
 
 ---
 
 ## Where bugs are most likely (start here)
-1. **Drag-and-drop** on the Kanban — most complex interaction.
-2. **Add/Edit modals** — edge cases (empty fields, huge numbers, past dates).
-3. **Confetti at 100%** + progress recalculation.
-4. **Mobile drawer** open/close.
+1. **Task expense roll-up** — mixing task-level and subtask amounts; the "subtasks override" switch.
+2. **Drag-and-drop** on the Kanban — most complex interaction.
+3. **Add/Edit modals** — edge cases (empty fields, huge numbers, past dates).
+4. **Confetti at 100%** + progress recalculation.
+5. **Mobile drawer** open/close.
 
 ## How to report issues
 For anything broken: **page + what you did + what happened** (a screenshot helps). Batch them and
 I'll fix them together.
 
-See [`progress.md`](progress.md) for the full built-vs-pending breakdown.
+See [`progress.md`](progress.md) for the full built-vs-pending breakdown and
+[`README.md`](README.md#-make-it-yours) for customising it.

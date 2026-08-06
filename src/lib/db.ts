@@ -1,6 +1,6 @@
 import { supabase, isCloud } from './supabase'
 import { USERS } from '@/data/config'
-import type { Activity, Expense, Snapshot, Task, User } from './types'
+import type { Activity, Snapshot, Task, User } from './types'
 
 const LS_KEY = 'wedding-dashboard:snapshot:v3'
 
@@ -10,7 +10,6 @@ function freshSnapshot(): Snapshot {
   const now = new Date().toISOString()
   return {
     tasks: [],
-    expenses: [],
     activity: [],
     users: USERS.map((u) => ({ ...u, lastActive: now })),
   }
@@ -49,6 +48,8 @@ const taskToRow = (t: Task) => ({
   due_date: t.dueDate,
   completion_pct: t.completionPct,
   checklist: t.checklist,
+  budgeted: t.budgeted ?? 0,
+  actual: t.actual ?? 0,
   created_at: t.createdAt,
   updated_at: t.updatedAt,
   completed_at: t.completedAt,
@@ -65,40 +66,11 @@ const rowToTask = (r: any): Task => ({
   dueDate: r.due_date,
   completionPct: r.completion_pct ?? 0,
   checklist: r.checklist ?? [],
+  budgeted: Number(r.budgeted) || 0,
+  actual: Number(r.actual) || 0,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
   completedAt: r.completed_at,
-})
-
-const expenseToRow = (e: Expense) => ({
-  id: e.id,
-  event_key: e.eventKey,
-  name: e.name,
-  category: e.category,
-  vendor: e.vendor,
-  amount: e.amount,
-  paid: e.paid,
-  payment_status: e.paymentStatus,
-  payment_method: e.paymentMethod,
-  date: e.date,
-  notes: e.notes,
-  created_by: e.createdBy,
-  created_at: e.createdAt,
-})
-const rowToExpense = (r: any): Expense => ({
-  id: r.id,
-  eventKey: r.event_key,
-  name: r.name,
-  category: r.category,
-  vendor: r.vendor ?? '',
-  amount: Number(r.amount) || 0,
-  paid: Number(r.paid) || 0,
-  paymentStatus: r.payment_status,
-  paymentMethod: r.payment_method ?? '',
-  date: r.date,
-  notes: r.notes ?? '',
-  createdBy: r.created_by,
-  createdAt: r.created_at,
 })
 
 const activityToRow = (a: Activity) => ({
@@ -139,19 +111,17 @@ const rowToUser = (r: any): User => ({
 
 async function cloudFetchAll(): Promise<Snapshot | null> {
   if (!supabase) return null
-  const [t, e, a, u] = await Promise.all([
+  const [t, a, u] = await Promise.all([
     supabase.from('tasks').select('*'),
-    supabase.from('expenses').select('*'),
     supabase.from('activity').select('*'),
     supabase.from('users').select('*'),
   ])
-  if (t.error || e.error || a.error || u.error) {
-    console.warn('[cloud] fetch error', t.error || e.error || a.error || u.error)
+  if (t.error || a.error || u.error) {
+    console.warn('[cloud] fetch error', t.error || a.error || u.error)
     return null
   }
   return {
     tasks: (t.data ?? []).map(rowToTask),
-    expenses: (e.data ?? []).map(rowToExpense),
     activity: (a.data ?? []).map(rowToActivity),
     users: (u.data ?? []).map(rowToUser),
   }
@@ -161,7 +131,6 @@ async function cloudSeed(snap: Snapshot): Promise<void> {
   if (!supabase) return
   await supabase.from('users').upsert(snap.users.map(userToRow))
   await supabase.from('tasks').upsert(snap.tasks.map(taskToRow))
-  await supabase.from('expenses').upsert(snap.expenses.map(expenseToRow))
   await supabase.from('activity').upsert(snap.activity.map(activityToRow))
 }
 
@@ -208,12 +177,6 @@ export const cloud = {
   async deleteTask(id: string) {
     if (supabase) await supabase.from('tasks').delete().eq('id', id)
   },
-  async upsertExpense(e: Expense) {
-    if (supabase) await supabase.from('expenses').upsert(expenseToRow(e))
-  },
-  async deleteExpense(id: string) {
-    if (supabase) await supabase.from('expenses').delete().eq('id', id)
-  },
   async addActivity(a: Activity) {
     if (supabase) await supabase.from('activity').insert(activityToRow(a))
   },
@@ -228,7 +191,6 @@ export function subscribeToChanges(onChange: () => void): () => void {
   const channel = client
     .channel('wedding-realtime')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, onChange)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'activity' }, onChange)
     .subscribe()
   return () => {
