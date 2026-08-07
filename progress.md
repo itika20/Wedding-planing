@@ -85,8 +85,8 @@ notes; add/edit/delete; booked vs pending stats.
 
 ### Guests — ✅ (per event)
 Bride-side only. Each guest is invited to one or more **functions** (multi-select), with head-count,
-RSVP (quick-toggle) and notes. Filter by event to see that function's list; totals (invites, heads,
-coming, awaiting RSVP) reflect the current filter.
+**hotel rooms**, RSVP (quick-toggle) and notes. Filter by event to see that function's list; totals
+(invites, heads, coming, awaiting RSVP, **rooms needed**) reflect the current filter.
 
 ### Documents — ✅
 Link-based document board grouped into folders (Contracts, Bills, Invitations, Designs, Guest lists);

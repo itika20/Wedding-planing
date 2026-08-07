@@ -106,6 +106,7 @@ export interface Guest {
   name: string
   events: EventKey[] // which functions they're invited to
   count: number // party size (incl. plus-ones)
+  rooms: number // hotel rooms this family needs
   rsvp: Rsvp
   notes: string
   createdAt: string

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Pencil, Plus, Trash2, UserRound, Users, X } from 'lucide-react'
+import { BedDouble, Check, Pencil, Plus, Trash2, UserRound, Users, X } from 'lucide-react'
 import { useCollections } from '@/store/useCollections'
 import { useStore } from '@/store/useStore'
 import { findEvent } from '@/lib/events'
@@ -33,7 +33,8 @@ export function Guests() {
     const heads = shown.reduce((s, g) => s + (g.count || 1), 0)
     const coming = shown.filter((g) => g.rsvp === 'yes').reduce((s, g) => s + (g.count || 1), 0)
     const pending = shown.filter((g) => g.rsvp === 'pending').length
-    return { invites: shown.length, heads, coming, pending }
+    const rooms = shown.reduce((s, g) => s + (g.rooms || 0), 0)
+    return { invites: shown.length, heads, coming, pending, rooms }
   }, [shown])
 
   const scoped = filter !== 'all'
@@ -55,11 +56,12 @@ export function Guests() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <StatCard index={0} icon={<Users size={16} />} label={scoped ? 'Invited' : 'Invites'} value={totals.invites} accent="#D4AF37" />
         <StatCard index={1} icon={<Users size={16} />} label="Total heads" value={totals.heads} accent="#8CA98C" />
         <StatCard index={2} icon={<Check size={16} />} label="Coming" value={totals.coming} accent="#5F7A5F" />
         <StatCard index={3} icon={<UserRound size={16} />} label="Awaiting RSVP" value={totals.pending} accent="#E0A458" />
+        <StatCard index={4} icon={<BedDouble size={16} />} label="Rooms needed" value={totals.rooms} accent="#B87883" />
       </div>
 
       {guests.length > 0 && eventList.length > 0 && (
@@ -113,6 +115,11 @@ export function Guests() {
                         ))
                       ) : (
                         <span className="text-xs text-ink-faint">No function set</span>
+                      )}
+                      {g.rooms > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose/10 px-1.5 py-0.5 text-[11px] font-medium text-clay" title={`${g.rooms} hotel room${g.rooms === 1 ? '' : 's'}`}>
+                          <BedDouble size={11} /> {g.rooms}
+                        </span>
                       )}
                       {g.notes && <span className="truncate text-xs text-ink-faint">· {g.notes}</span>}
                     </div>
@@ -182,6 +189,7 @@ function GuestModal({
   const [name, setName] = useState('')
   const [invited, setInvited] = useState<string[]>([])
   const [count, setCount] = useState('1')
+  const [rooms, setRooms] = useState('0')
   const [rsvp, setRsvp] = useState<Rsvp>('pending')
   const [notes, setNotes] = useState('')
 
@@ -190,6 +198,7 @@ function GuestModal({
     setName(guest?.name ?? '')
     setInvited(guest?.events ?? (defaultEvent ? [defaultEvent] : []))
     setCount(String(guest?.count ?? 1))
+    setRooms(String(guest?.rooms ?? 0))
     setRsvp(guest?.rsvp ?? 'pending')
     setNotes(guest?.notes ?? '')
   }, [open, guest, defaultEvent])
@@ -210,7 +219,7 @@ function GuestModal({
           <button
             className="btn-gold"
             disabled={!canSave}
-            onClick={() => onSave({ name: name.trim(), events: invited, count: Math.max(1, Number(count) || 1), rsvp, notes: notes.trim() })}
+            onClick={() => onSave({ name: name.trim(), events: invited, count: Math.max(1, Number(count) || 1), rooms: Math.max(0, Number(rooms) || 0), rsvp, notes: notes.trim() })}
           >
             {guest ? 'Save' : 'Add guest'}
           </button>
@@ -255,20 +264,25 @@ function GuestModal({
             <input type="number" min={1} className="input" value={count} onChange={(e) => setCount(e.target.value)} />
           </div>
           <div>
-            <label className="label">RSVP</label>
-            <div className="flex gap-1.5">
-              {RSVPS.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRsvp(r)}
-                  className="flex-1 rounded-lg border px-2 py-2 text-xs font-semibold transition"
-                  style={rsvp === r ? { background: RSVP_META[r].bg, color: RSVP_META[r].color, borderColor: RSVP_META[r].color } : { borderColor: '#EFE6DD', color: '#9A9088' }}
-                >
-                  {RSVP_META[r].label}
-                </button>
-              ))}
-            </div>
+            <label className="label">Hotel rooms</label>
+            <input type="number" min={0} className="input" value={rooms} placeholder="0" onChange={(e) => setRooms(e.target.value)} />
+          </div>
+        </div>
+
+        <div>
+          <label className="label">RSVP</label>
+          <div className="flex gap-1.5">
+            {RSVPS.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRsvp(r)}
+                className="flex-1 rounded-lg border px-2 py-2 text-xs font-semibold transition"
+                style={rsvp === r ? { background: RSVP_META[r].bg, color: RSVP_META[r].color, borderColor: RSVP_META[r].color } : { borderColor: '#EFE6DD', color: '#9A9088' }}
+              >
+                {RSVP_META[r].label}
+              </button>
+            ))}
           </div>
         </div>
 

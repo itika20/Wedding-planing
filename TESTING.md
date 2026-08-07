@@ -104,8 +104,9 @@ Legend: ✅ built & ready to test · ⬜ intentionally a stub (not a bug).
 
 ## 11. Other sidebar sections ✅
 - [ ] **Vendors** — add/edit/delete; booking status; booked vs pending stats.
-- [ ] **Guests** — add guests, tick which **functions** they're invited to, head-count, quick RSVP
-      toggle; **filter by event** to see each function's list; totals reflect the filter.
+- [ ] **Guests** — add guests, tick which **functions** they're invited to, head-count, **hotel rooms**,
+      quick RSVP toggle; **filter by event** to see each function's list; totals (incl. **Rooms needed**)
+      reflect the filter; a bed chip shows a family's room count on its row.
 - [ ] **Documents** — add a doc with a share link, grouped into folders; "Open" launches the link.
 - [ ] (Calendar has been removed.)
 
