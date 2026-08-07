@@ -15,7 +15,6 @@ import { Vendors } from '@/pages/Vendors'
 import { Guests } from '@/pages/Guests'
 import { Shopping } from '@/pages/Shopping'
 import { Documents } from '@/pages/Documents'
-import { CalendarPage } from '@/pages/CalendarPage'
 
 function RequireUser({ children }: { children: React.ReactNode }) {
   const currentUserId = useStore((s) => s.currentUserId)
@@ -83,7 +82,6 @@ export default function App() {
           <Route path="settings" element={<Settings />} />
           <Route path="vendors" element={<Vendors />} />
           <Route path="guests" element={<Guests />} />
-          <Route path="calendar" element={<CalendarPage />} />
           <Route path="documents" element={<Documents />} />
           <Route path="shopping" element={<Shopping />} />
         </Route>
