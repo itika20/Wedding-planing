@@ -18,7 +18,6 @@ export const useCollections = create<State>()(
     (set) => ({
       vendors: [],
       guests: [],
-      shopping: [],
       documents: [],
 
       add: (coll, item) =>

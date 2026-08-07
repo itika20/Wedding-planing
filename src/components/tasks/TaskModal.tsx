@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, ShoppingBag, X } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import { Modal } from '@/components/ui/Modal'
 import { useStore } from '@/store/useStore'
@@ -215,6 +215,17 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
                         <Avatar user={by} size={18} /> {by.name}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => patchItem(item.id, { shopping: !item.shopping })}
+                      className={`shrink-0 rounded-md p-1 transition ${
+                        item.shopping ? 'bg-champagne/15 text-champagne-deep' : 'text-ink-faint hover:text-ink'
+                      }`}
+                      title={item.shopping ? 'A purchase — shows in Shopping. Click to unmark.' : 'Mark as a purchase (shows in Shopping)'}
+                      aria-pressed={item.shopping ?? false}
+                    >
+                      <ShoppingBag size={14} />
+                    </button>
                     <button
                       type="button"
                       onClick={() => setChecklist((c) => c.filter((x) => x.id !== item.id))}

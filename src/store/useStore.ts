@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
 import type { Session } from '@supabase/supabase-js'
-import type { Activity, EventKey, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
+import type { Activity, ChecklistItem, EventKey, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
 import { cloud, loadSnapshot, saveLocal, subscribeToChanges } from '@/lib/db'
 import { isCloud, supabase } from '@/lib/supabase'
 import { loadSettings, saveSettings } from '@/lib/settings'
@@ -45,11 +45,30 @@ interface StoreState {
   showToast: (message: string, tone?: 'success' | 'info' | 'error') => void
   dismissToast: () => void
 
-  addTask: (input: Partial<Task> & Pick<Task, 'eventKey' | 'title'>) => Task
+  addTask: (input: Partial<Task> & Pick<Task, 'eventKey' | 'title'>, opts?: { silent?: boolean }) => Task
   updateTask: (id: string, patch: Partial<Task>) => void
   deleteTask: (id: string) => void
   duplicateTask: (id: string) => void
   moveTask: (id: string, status: Task['status']) => void
+
+  // Subtask-level ops — used by the Shopping view (and anywhere a single subtask
+  // must change outside the task modal). All go through updateTask so they
+  // persist + sync like any task edit.
+  toggleSubtask: (taskId: string, itemId: string) => void
+  setSubtask: (taskId: string, itemId: string, patch: Partial<ChecklistItem>) => void
+  removeSubtask: (taskId: string, itemId: string) => void
+  // Add a purchase from the Shopping view. Reflects into the event's task: an
+  // explicit task if given, otherwise the event's auto "Shopping" bucket.
+  addShoppingItem: (input: {
+    eventKey: EventKey
+    taskId?: string
+    text: string
+    cost?: number // estimated (budgeted)
+    actual?: number // what it actually cost (once bought)
+    forWhom?: string
+    store?: string
+    purchased?: boolean
+  }) => void
 }
 
 let unsubscribe: (() => void) | null = null
@@ -220,7 +239,7 @@ export const useStore = create<StoreState>((set, get) => {
     },
     dismissToast: () => set({ toast: null }),
 
-    addTask: (input) => {
+    addTask: (input, opts) => {
       const uid = get().currentUserId ?? 'you'
       const ts = nowISO()
       const task: Task = {
@@ -237,6 +256,7 @@ export const useStore = create<StoreState>((set, get) => {
         checklist: input.checklist ?? [],
         budgeted: input.budgeted ?? 0,
         actual: input.actual ?? 0,
+        shoppingList: input.shoppingList ?? false,
         createdAt: ts,
         updatedAt: ts,
         completedAt: input.status === 'completed' ? ts : null,
@@ -246,7 +266,7 @@ export const useStore = create<StoreState>((set, get) => {
       void cloud.upsertTask(task)
       logActivity('created', `created task “${task.title}”`, task.eventKey)
       touchUser()
-      get().showToast('Task added')
+      if (!opts?.silent) get().showToast('Task added')
       return task
     },
 
@@ -311,6 +331,67 @@ export const useStore = create<StoreState>((set, get) => {
 
     moveTask: (id, status) => {
       get().updateTask(id, { status })
+    },
+
+    setSubtask: (taskId, itemId, patch) => {
+      const t = get().tasks.find((x) => x.id === taskId)
+      if (!t) return
+      const checklist = t.checklist.map((c) => (c.id === itemId ? { ...c, ...patch } : c))
+      get().updateTask(taskId, { checklist })
+    },
+
+    toggleSubtask: (taskId, itemId) => {
+      const uid = get().currentUserId ?? null
+      const t = get().tasks.find((x) => x.id === taskId)
+      if (!t) return
+      const checklist = t.checklist.map((c) => {
+        if (c.id !== itemId) return c
+        const done = !c.done
+        return { ...c, done, checkedBy: done ? uid : null, checkedAt: done ? nowISO() : null }
+      })
+      get().updateTask(taskId, { checklist })
+    },
+
+    removeSubtask: (taskId, itemId) => {
+      const t = get().tasks.find((x) => x.id === taskId)
+      if (!t) return
+      const checklist = t.checklist.filter((c) => c.id !== itemId)
+      // Tidy up: an auto-created Shopping bucket with nothing left is deleted so
+      // the board doesn't fill with empty "Shopping" tasks.
+      if (checklist.length === 0 && t.shoppingList) {
+        get().deleteTask(taskId)
+        return
+      }
+      get().updateTask(taskId, { checklist })
+    },
+
+    addShoppingItem: ({ eventKey, taskId, text, cost, actual, forWhom, store, purchased }) => {
+      const name = text.trim()
+      if (!name) return
+      const uid = get().currentUserId ?? null
+      const item: ChecklistItem = {
+        id: nanoid(6),
+        text: name,
+        done: Boolean(purchased),
+        checkedBy: purchased ? uid : null,
+        checkedAt: purchased ? nowISO() : null,
+        shopping: true,
+        budgeted: cost && cost > 0 ? Math.round(cost) : undefined,
+        actual: actual && actual > 0 ? Math.round(actual) : undefined,
+        forWhom: forWhom?.trim() || undefined,
+        store: store?.trim() || undefined,
+      }
+
+      // Attach to the chosen task, or the event's Shopping bucket (create if none).
+      const explicit = taskId ? get().tasks.find((t) => t.id === taskId) : undefined
+      const target = explicit ?? get().tasks.find((t) => t.eventKey === eventKey && t.shoppingList)
+      if (target) {
+        get().updateTask(target.id, { checklist: [...target.checklist, item] })
+      } else {
+        get().addTask({ eventKey, title: 'Shopping', shoppingList: true, checklist: [item] }, { silent: true })
+      }
+      touchUser()
+      get().showToast('Added to shopping')
     },
   }
 })

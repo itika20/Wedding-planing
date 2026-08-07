@@ -76,7 +76,8 @@ Each event has its own workspace with tabs:
 
 ## ✅ Sidebar sections (now functional)
 
-All persist via a dedicated collections store (`src/store/useCollections.ts`, localStorage).
+Vendors, Guests and Documents persist via a dedicated collections store
+(`src/store/useCollections.ts`, localStorage). Shopping lives on tasks (see below).
 
 ### Vendors — ✅
 Directory with name, category, phone, linked event, booking status (pending/booked/completed/cancelled),
@@ -86,19 +87,19 @@ notes; add/edit/delete; booked vs pending stats.
 List with side (bride/groom/both), head-count, RSVP (quick-toggle), notes; totals for invites, heads,
 coming, awaiting RSVP; filter by side.
 
-### Calendar — ✅
-Month view (prev/next/today) plotting each event on its date in its accent colour; click to open the
-event; "Upcoming" side panel with countdowns.
-
 ### Documents — ✅
 Link-based document board grouped into folders (Contracts, Bills, Invitations, Designs, Guest lists);
 each entry opens its share link. (Real file upload deferred — needs Supabase Storage.)
 
-### Shopping — ✅
-Buy-list with for-whom, cost, store, purchased toggle, notes; totals for items, purchased, est. cost, spent.
+### Shopping — ✅ (linked to tasks)
+A live view of every task subtask flagged as a purchase (cart icon), grouped by event. One source of
+truth: ticking/editing/deleting here changes the same subtask on the task, and vice-versa. "Add item"
+attaches to a chosen task or an auto-created per-event "Shopping" bucket (removed when emptied). Cost
+(`budgeted`) rolls into event expenses. Totals: items, bought, est. cost, spent.
 
 ### Cross-cutting features still pending
-- **Cloud sync for the new collections** ⬜ — vendors/guests/shopping/documents are localStorage-only for now.
+- **Cloud sync for the new collections** ⬜ — vendors/guests/documents are localStorage-only for now
+  (shopping rides on tasks, so it already syncs).
 - **Notifications** ⬜ — deadline / payment / overdue / booking reminders.
 - **Analytics page** ⬜ — spending trend, budget-vs-actual over time, task-completion speed, readiness score
   (per-event budget/actual bars already exist on the Expenses page & event Overviews).

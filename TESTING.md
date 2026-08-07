@@ -48,9 +48,11 @@ Legend: ✅ built & ready to test · ⬜ intentionally a stub (not a bug).
 
 ## 4. Tasks / Kanban — test hard ✅
 - [ ] **Add task** — minimal modal: Title, Description, **Expense (optional)**, Subtasks.
+- [ ] **Click a card's title** → opens the edit modal (no edit icon needed).
 - [ ] **Drag a card** across To Do → In Progress → Completed → Cancelled.
 - [ ] Click the **circle** on a card to mark complete / undo.
-- [ ] **⋯ menu** on a card → Edit, Duplicate, Delete.
+- [ ] **⋯ menu** on a card → Duplicate, Delete.
+- [ ] Each subtask has a **cart toggle** — flag it to make it a purchase (shows in Shopping).
 - [ ] **Search / Filters / Sort** narrow the board.
 - [ ] A card shows a small **₹ chip** when the task has a cost, and a `n/n` chip for subtasks.
 - [ ] Complete every task in an event → **confetti fires** at 100%.
@@ -90,15 +92,23 @@ Legend: ✅ built & ready to test · ⬜ intentionally a stub (not a bug).
 - [ ] Sync status card (says **Local** until Supabase is configured).
 - [ ] **Clear all data** — wipes everything back to a blank slate (use freely while testing).
 
-## 10. Sidebar sections ✅
+## 10. Shopping — linked to tasks ✅
+- [ ] Flag a task subtask with the **cart icon** → it appears on the **Shopping** page under its event.
+- [ ] **Tick an item in Shopping** → the subtask shows checked in the task (and vice-versa — same record).
+- [ ] **Add item** in Shopping → pick an event (and optionally a task) → it becomes a subtask on that task,
+      or an auto-created "Shopping" bucket; it shows in the event's Tasks tab too.
+- [ ] Tick **Already bought** → an **Actual cost** field appears; the amount feeds the event's **Actual
+      spent** and the overall Expenses totals.
+- [ ] **Click an item's name** to edit it (no edit icon); delete removes it from the task.
+- [ ] Removing the last item from an auto "Shopping" bucket deletes that empty task.
+
+## 11. Other sidebar sections ✅
 - [ ] **Vendors** — add/edit/delete; booking status; booked vs pending stats.
 - [ ] **Guests** — add guests with side + head-count; quick RSVP toggle; totals + side filter.
-- [ ] **Calendar** — month view plots your events on their dates; click one to open it; Upcoming panel.
-- [ ] **Shopping** — add items, tick as purchased; est. cost vs spent totals.
 - [ ] **Documents** — add a doc with a share link, grouped into folders; "Open" launches the link.
-- [ ] These persist locally (their own store) — reload and they're still there.
+- [ ] (Calendar has been removed.)
 
-## 11. Responsive / mobile ✅
+## 12. Responsive / mobile ✅
 - [ ] Narrow the window → sidebar collapses to a hamburger drawer; layout reflows.
 - [ ] Event progress cards drop to a 2-up grid on mobile.
 

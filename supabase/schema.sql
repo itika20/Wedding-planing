@@ -31,14 +31,16 @@ create table if not exists public.tasks (
   checklist      jsonb default '[]'::jsonb,
   budgeted       numeric default 0,
   actual         numeric default 0,
+  shopping_list  boolean default false,
   created_at     timestamptz default now(),
   updated_at     timestamptz default now(),
   completed_at   timestamptz
 );
 
 -- Upgrading an existing project? These are safe to re-run.
-alter table public.tasks add column if not exists budgeted numeric default 0;
-alter table public.tasks add column if not exists actual   numeric default 0;
+alter table public.tasks add column if not exists budgeted      numeric default 0;
+alter table public.tasks add column if not exists actual        numeric default 0;
+alter table public.tasks add column if not exists shopping_list boolean default false;
 
 create table if not exists public.activity (
   id         text primary key,

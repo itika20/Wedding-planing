@@ -118,8 +118,8 @@ src/
     tasks/                KanbanBoard, TaskCard, TaskModal (title, description, budgeted/actual, subtasks)
     expenses/             TaskExpenseList (read-only roll-up of task expenses)
     activity/             ActivityFeed
-  pages/                  SetupWizard, ProfileSelect, Home, EventWorkspace, Expenses, ActivityPage,
-                          Settings, Vendors, Guests, Calendar, Documents, Shopping
+  pages/                  SetupWizard, Login, ProfileSelect, Home, EventWorkspace, Expenses,
+                          ActivityPage, Settings, Vendors, Guests, Documents, Shopping
 ```
 
 **Data flow:** components read/write the Zustand store → the store updates in memory (optimistic),
@@ -132,7 +132,16 @@ aren't stored separately — they're fields on tasks/subtasks, summed on read vi
 Warm ivory + champagne gold + dusty rose palette, Fraunces display / Inter body type, soft shadows,
 rounded corners, subtle glass, generous whitespace. Fully responsive (desktop → tablet → mobile).
 
+## 🛍️ Shopping
+
+Shopping isn't a separate list — a **purchase is a task subtask** flagged with the cart icon (`done` =
+bought, `budgeted` = estimated cost). The **Shopping** page is a live view of every flagged subtask,
+grouped by event; ticking, editing or deleting there changes the same subtask on the task (and vice
+versa). "Add item" from the Shopping page drops the purchase into the chosen task, or an auto-created
+per-event "Shopping" bucket. So purchases you note against an event show up in Shopping without
+re-entry, and their cost rolls into that event's expenses.
+
 ## 🗺️ Roadmap
 
-Deep, polished core first. Vendors, Guests, Calendar, Documents and Shopping have navigable pages
-describing their planned scope and build on the same store/patterns already in place.
+Deep, polished core first. Vendors, Guests, Documents and Shopping build on the same store/patterns
+already in place.

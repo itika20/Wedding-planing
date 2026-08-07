@@ -1,4 +1,4 @@
-import { Check, CheckSquare, Copy, MoreHorizontal, Pencil, Trash2, Wallet } from 'lucide-react'
+import { Check, CheckSquare, Copy, MoreHorizontal, Trash2, Wallet } from 'lucide-react'
 import { forwardRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { Task } from '@/lib/types'
@@ -62,9 +62,16 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
           >
             {isDone && <Check size={11} />}
           </button>
-          <p className={cn('text-sm font-medium leading-snug text-ink', isDone && 'text-ink-soft line-through')}>
+          <button
+            onClick={() => onEdit(task)}
+            className={cn(
+              'text-left text-sm font-medium leading-snug text-ink transition hover:text-champagne-deep',
+              isDone && 'text-ink-soft line-through',
+            )}
+            title="Edit task"
+          >
             {task.title}
-          </p>
+          </button>
         </div>
         <div className="relative">
           <button
@@ -76,9 +83,6 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
           </button>
           {menu && (
             <div className="absolute right-0 top-7 z-20 w-36 overflow-hidden rounded-lg border border-line bg-white p-1 shadow-lift">
-              <button className="menu-item" onMouseDown={() => onEdit(task)}>
-                <Pencil size={13} /> Edit
-              </button>
               <button className="menu-item" onMouseDown={() => duplicateTask(task.id)}>
                 <Copy size={13} /> Duplicate
               </button>
