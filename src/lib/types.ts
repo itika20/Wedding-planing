@@ -101,11 +101,10 @@ export interface Vendor {
 }
 
 export type Rsvp = 'pending' | 'yes' | 'no'
-export type GuestSide = 'bride' | 'groom' | 'both'
 export interface Guest {
   id: string
   name: string
-  side: GuestSide
+  events: EventKey[] // which functions they're invited to
   count: number // party size (incl. plus-ones)
   rsvp: Rsvp
   notes: string

@@ -83,9 +83,10 @@ Vendors, Guests and Documents persist via a dedicated collections store
 Directory with name, category, phone, linked event, booking status (pending/booked/completed/cancelled),
 notes; add/edit/delete; booked vs pending stats.
 
-### Guests — ✅
-List with side (bride/groom/both), head-count, RSVP (quick-toggle), notes; totals for invites, heads,
-coming, awaiting RSVP; filter by side.
+### Guests — ✅ (per event)
+Bride-side only. Each guest is invited to one or more **functions** (multi-select), with head-count,
+RSVP (quick-toggle) and notes. Filter by event to see that function's list; totals (invites, heads,
+coming, awaiting RSVP) reflect the current filter.
 
 ### Documents — ✅
 Link-based document board grouped into folders (Contracts, Bills, Invitations, Designs, Guest lists);

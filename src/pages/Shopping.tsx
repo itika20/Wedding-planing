@@ -9,7 +9,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { cn, inr, nowISO } from '@/lib/utils'
 import type { ChecklistItem, EventMeta, Task } from '@/lib/types'
 
-const FOR_OPTIONS = ['Bride', 'Groom', 'Parents', 'Decor', 'Gifts', 'Accessories', 'Household', 'Other']
+const FOR_OPTIONS = ['Bride', 'Parents', 'Decor', 'Gifts', 'Accessories', 'Household', 'Other']
 
 interface ShopRow {
   taskId: string
