@@ -52,14 +52,15 @@ export function Home() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         onClick={() => navigate(`/app/event/${e.id}`)}
-        className="card card-hover flex w-full flex-col items-center p-4 text-center"
+        className="card card-hover flex h-full w-full flex-col items-center p-4 text-center"
       >
         <ProgressRing value={st.taskProgress} size={78} stroke={7} color={e.accent} label={<span className="text-xl">{e.emoji}</span>} />
-        <p className="mt-2 text-sm font-semibold text-ink">{e.name}</p>
+        <p className="mt-2 line-clamp-1 text-sm font-semibold text-ink">{e.name}</p>
         <p className="text-xs text-ink-faint">
           {st.completed}/{st.totalTasks} tasks
         </p>
-        <p className="mt-0.5 text-[11px] text-ink-faint">
+        {/* Always reserve this line so cards with no date/spend stay the same height. */}
+        <p className="mt-0.5 min-h-[16px] text-[11px] text-ink-faint">
           {d ? `${daysUntil(d)}d` : ''}
           {d && hasMoney ? ' · ' : ''}
           {hasMoney ? `${inr(st.actual, { compact: true })} / ${inr(st.budgeted, { compact: true })}` : ''}
