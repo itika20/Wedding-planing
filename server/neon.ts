@@ -13,13 +13,21 @@ function getSql() {
 
 export async function fetchSnapshot() {
   const sql = getSql()
-  const [tasks, activity, users, settings] = await Promise.all([
+  const [tasks, activity, users] = await Promise.all([
     sql`select * from tasks`,
     sql`select * from activity order by created_at desc limit 300`,
     sql`select * from users`,
-    sql`select data from app_settings where id = 'app'`,
   ])
-  return { tasks, activity, users, settings: settings[0]?.data ?? null }
+  // Settings are queried separately and tolerantly — an older deploy might not
+  // have the app_settings table yet, and that shouldn't block loading everything.
+  let settings: any = null
+  try {
+    const rows = await sql`select data from app_settings where id = 'app'`
+    settings = rows[0]?.data ?? null
+  } catch {
+    /* app_settings table not created yet — run neon/schema.sql */
+  }
+  return { tasks, activity, users, settings }
 }
 
 export async function saveSettings(data: Record<string, any>) {

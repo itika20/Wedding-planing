@@ -64,12 +64,16 @@ export const api = {
     }
   },
 
-  // 'unauth' → session expired; null → network/server error (stay on cached data)
-  async snapshot(): Promise<RawSnapshot | 'unauth' | null> {
+  // 'unauth' → session expired; { error } → server responded but failed (shows the
+  // reason); null → couldn't reach the server at all. Any non-success keeps cached data.
+  async snapshot(): Promise<RawSnapshot | 'unauth' | { error: string } | null> {
     try {
       const r = await fetch('/api/snapshot')
       if (r.status === 401) return 'unauth'
-      if (!r.ok) return null
+      if (!r.ok) {
+        const j = await r.json().catch(() => null)
+        return { error: (j && j.error) || `Server error (${r.status})` }
+      }
       return (await r.json()) as RawSnapshot
     } catch {
       return null

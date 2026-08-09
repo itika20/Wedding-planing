@@ -88,7 +88,7 @@ export interface LoadResult {
 export async function loadSnapshot(): Promise<LoadResult> {
   if (isCloud()) {
     const res = await api.snapshot()
-    if (res && res !== 'unauth') {
+    if (res && res !== 'unauth' && 'tasks' in res) {
       let users = (res.users ?? []).map(rowToUser)
       // First run against a fresh database — register the family profiles once.
       if (users.length === 0) {
@@ -104,12 +104,13 @@ export async function loadSnapshot(): Promise<LoadResult> {
       saveLocal(snapshot)
       return { snapshot, mode: 'cloud', serverSettings: (res.settings as WeddingSettings) ?? null }
     }
-    // Server unreachable → show the last cached data so the app still opens.
-    return {
-      snapshot: loadLocal() ?? freshSnapshot(),
-      mode: 'cloud',
-      cloudError: res === 'unauth' ? undefined : 'Could not reach the server — showing your last saved data.',
-    }
+    // Server reachable but failed, or unreachable → show last cached data so the
+    // app still opens, and surface the real reason when the server gave one.
+    let cloudError: string | undefined
+    if (res === 'unauth') cloudError = undefined
+    else if (res && 'error' in res) cloudError = `Couldn't load from the server: ${res.error}`
+    else cloudError = 'Could not reach the server — showing your last saved data.'
+    return { snapshot: loadLocal() ?? freshSnapshot(), mode: 'cloud', cloudError }
   }
 
   const local = loadLocal()
