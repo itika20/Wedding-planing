@@ -17,6 +17,10 @@ export function Settings() {
   const resetData = () => {
     localStorage.removeItem('wedding-dashboard:snapshot:v3')
     localStorage.removeItem('wedding-dashboard:collections:v1')
+    // Per-event notes are stored under their own keys — clear those too.
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith('wedding-dashboard:notes:'))
+      .forEach((k) => localStorage.removeItem(k))
     showToast('Cleared — starting fresh', 'info')
     setTimeout(() => window.location.reload(), 600)
   }
@@ -131,7 +135,8 @@ export function Settings() {
       <section className="card border-clay-soft p-6">
         <h2 className="font-display text-lg font-semibold text-ink">Clear all data</h2>
         <p className="mb-3 text-sm text-ink-soft">
-          Removes every task and expense stored in this browser and starts from a blank slate.
+          Removes all your tasks, guests, vendors, documents and notes from this browser and starts from a
+          blank slate. Your wedding date and events are kept.
           {mode === 'cloud' && ' Cloud data is not affected.'}
         </p>
         <button onClick={resetData} className="btn-outline border-clay text-clay hover:bg-clay-soft/40">

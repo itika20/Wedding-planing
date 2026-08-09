@@ -320,6 +320,17 @@ export const useStore = create<StoreState>((set, get) => {
         status: 'todo',
         completionPct: 0,
         completedAt: null,
+        // A fresh copy: keep the plan (budgeted) but reset progress and actual
+        // spend, and give subtasks new ids so they don't collide with the original.
+        actual: 0,
+        checklist: t.checklist.map((c) => ({
+          ...c,
+          id: nanoid(6),
+          done: false,
+          checkedBy: null,
+          checkedAt: null,
+          actual: undefined,
+        })),
         createdAt: ts,
         updatedAt: ts,
       }

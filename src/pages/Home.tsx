@@ -14,6 +14,7 @@ import {
 import { useStore, useCurrentUser } from '@/store/useStore'
 import { useUI } from '@/components/layout/UIProvider'
 import { overallStats, eventStats } from '@/lib/selectors'
+import { varianceView } from '@/lib/expenses'
 import { findEvent } from '@/lib/events'
 import type { EventMeta } from '@/lib/types'
 import { CountUp } from '@/components/ui/CountUp'
@@ -34,7 +35,7 @@ export function Home() {
   const { weddingDate, events } = settings
 
   const stats = overallStats(tasks)
-  const overBudget = stats.variance > 0
+  const vv = varianceView(stats.budgeted, stats.actual)
   const days = weddingDate ? daysUntil(weddingDate) : 0
   const eventList = events
 
@@ -141,7 +142,7 @@ export function Home() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard index={0} icon={<ReceiptIndianRupee size={16} />} label="Budgeted" value={<CountUp value={stats.budgeted} format={(n) => inr(n, { compact: true })} />} sub={`${stats.expenseTaskCount} task${stats.expenseTaskCount === 1 ? '' : 's'} with a cost`} accent="#D4AF37" />
         <StatCard index={1} icon={<Wallet size={16} />} label="Actual spent" value={<CountUp value={stats.actual} format={(n) => inr(n, { compact: true })} />} sub="Logged so far" accent="#5F7A5F" />
-        <StatCard index={2} icon={<Scale size={16} />} label={overBudget ? 'Over budget' : 'Under budget'} value={<CountUp value={Math.abs(stats.variance)} format={(n) => inr(n, { compact: true })} />} sub={stats.variance === 0 ? 'Right on budget' : overBudget ? 'Above planned' : 'Below planned'} accent={overBudget ? '#B87883' : '#5F7A5F'} />
+        <StatCard index={2} icon={<Scale size={16} />} label={vv.label} value={<CountUp value={vv.amount} format={(n) => inr(n, { compact: true })} />} sub={vv.hint} accent={vv.over ? '#B87883' : '#5F7A5F'} />
       </div>
 
       {/* Event progress */}

@@ -3,6 +3,7 @@ import { ReceiptIndianRupee, Scale, Wallet } from 'lucide-react'
 import { useStore } from '@/store/useStore'
 import { allEvents } from '@/lib/events'
 import { eventStats, overallStats } from '@/lib/selectors'
+import { varianceView } from '@/lib/expenses'
 import { TaskExpenseList } from '@/components/expenses/TaskExpenseList'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
@@ -14,7 +15,7 @@ export function Expenses() {
   const tasks = useStore((s) => s.tasks)
   const events = allEvents(useStore((s) => s.settings.events))
   const stats = overallStats(tasks)
-  const over = stats.variance > 0
+  const vv = varianceView(stats.budgeted, stats.actual)
 
   // Per-event budgeted/actual, biggest first (only events that have spend).
   const byEvent = events
@@ -35,7 +36,7 @@ export function Expenses() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard index={0} icon={<ReceiptIndianRupee size={16} />} label="Budgeted" value={<CountUp value={stats.budgeted} format={(n) => inr(n, { compact: true })} />} sub={`${stats.expenseTaskCount} task${stats.expenseTaskCount === 1 ? '' : 's'} with a cost`} accent="#D4AF37" />
         <StatCard index={1} icon={<Wallet size={16} />} label="Actual spent" value={<CountUp value={stats.actual} format={(n) => inr(n, { compact: true })} />} sub="Logged so far" accent="#5F7A5F" />
-        <StatCard index={2} icon={<Scale size={16} />} label={over ? 'Over budget' : 'Under budget'} value={<CountUp value={Math.abs(stats.variance)} format={(n) => inr(n, { compact: true })} />} sub={stats.variance === 0 ? 'Right on budget' : over ? 'Above planned' : 'Below planned'} accent={over ? '#B87883' : '#5F7A5F'} />
+        <StatCard index={2} icon={<Scale size={16} />} label={vv.label} value={<CountUp value={vv.amount} format={(n) => inr(n, { compact: true })} />} sub={vv.hint} accent={vv.over ? '#B87883' : '#5F7A5F'} />
         <StatCard index={3} icon={<ReceiptIndianRupee size={16} />} label="Events with spend" value={<CountUp value={byEvent.length} />} sub={`of ${events.length}`} accent="#8CA98C" />
       </div>
 

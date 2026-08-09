@@ -37,6 +37,26 @@ export interface ExpenseTotals {
   taskCount: number // tasks that carry any expense
 }
 
+// How to present the budget-vs-actual gap. Handles the "spent but no budget set"
+// case so we never say "over budget" (or "no costs") when there's actual spend
+// and no budget to compare against.
+export function varianceView(budgeted: number, actual: number): {
+  label: string
+  amount: number
+  over: boolean // true = show in the "attention" (clay) tone
+  noBudget: boolean
+  hint: string
+} {
+  if (budgeted === 0) {
+    if (actual === 0) return { label: 'On budget', amount: 0, over: false, noBudget: true, hint: 'Nothing logged yet' }
+    return { label: 'Unbudgeted', amount: actual, over: true, noBudget: true, hint: 'Spent with no budget set' }
+  }
+  const variance = actual - budgeted
+  if (variance === 0) return { label: 'On budget', amount: 0, over: false, noBudget: false, hint: 'Right on budget' }
+  const over = variance > 0
+  return { label: over ? 'Over budget' : 'Under budget', amount: Math.abs(variance), over, noBudget: false, hint: over ? 'Above planned' : 'Below planned' }
+}
+
 export function sumExpenses(tasks: Task[]): ExpenseTotals {
   let budgeted = 0
   let actual = 0

@@ -7,6 +7,7 @@ import type { EventKey } from '@/lib/types'
 import { useStore } from '@/store/useStore'
 import { useUI } from '@/components/layout/UIProvider'
 import { eventStats } from '@/lib/selectors'
+import { varianceView } from '@/lib/expenses'
 import { KanbanBoard } from '@/components/tasks/KanbanBoard'
 import { TaskExpenseList } from '@/components/expenses/TaskExpenseList'
 import { ProgressRing } from '@/components/ui/ProgressRing'
@@ -151,7 +152,7 @@ function Overview({ eventKey }: { eventKey: EventKey }) {
   const users = useStore((s) => s.users)
   const { openTask } = useUI()
   const st = eventStats(eventKey, tasks)
-  const over = st.variance > 0
+  const vv = varianceView(st.budgeted, st.actual)
   const usedPct = st.budgeted > 0 ? Math.round((st.actual / st.budgeted) * 100) : 0
 
   // who owns what
@@ -195,9 +196,9 @@ function Overview({ eventKey }: { eventKey: EventKey }) {
             <p className="font-display text-lg font-semibold text-sage-deep">{inr(st.actual, { compact: true })}</p>
           </div>
           <div>
-            <p className="text-xs text-ink-faint">{over ? 'Over budget' : 'Under budget'}</p>
-            <p className={cn('font-display text-lg font-semibold', over ? 'text-clay' : 'text-sage-deep')}>
-              {inr(Math.abs(st.variance), { compact: true })}
+            <p className="text-xs text-ink-faint">{vv.label}</p>
+            <p className={cn('font-display text-lg font-semibold', vv.over ? 'text-clay' : 'text-sage-deep')}>
+              {inr(vv.amount, { compact: true })}
             </p>
           </div>
         </div>
@@ -205,10 +206,14 @@ function Overview({ eventKey }: { eventKey: EventKey }) {
           <div className="mt-5 border-t border-line pt-4">
             <div className="mb-1.5 flex items-center justify-between text-xs text-ink-faint">
               <span>Actual vs budget</span>
-              <span className={cn('font-semibold', over ? 'text-clay' : 'text-ink-soft')}>{usedPct}%</span>
+              <span className={cn('font-semibold', vv.over ? 'text-clay' : 'text-ink-soft')}>{usedPct}%</span>
             </div>
-            <ProgressBar value={Math.min(100, usedPct)} color={over ? '#B87883' : '#5F7A5F'} />
+            <ProgressBar value={Math.min(100, usedPct)} color={vv.over ? '#B87883' : '#5F7A5F'} />
           </div>
+        ) : st.actual > 0 ? (
+          <p className="mt-5 border-t border-line pt-4 text-center text-sm text-ink-soft">
+            <b className="text-ink">{inr(st.actual, { compact: true })}</b> spent — no budget set yet.
+          </p>
         ) : (
           <p className="mt-5 border-t border-line pt-4 text-center text-sm text-ink-soft">
             No costs yet — add a budget or actual amount inside any task.
@@ -275,13 +280,13 @@ function SmallCard({ label, value, tone }: { label: string; value: number; tone:
 function ExpensesTab({ eventKey }: { eventKey: EventKey }) {
   const tasks = useStore((s) => s.tasks)
   const st = eventStats(eventKey, tasks)
-  const over = st.variance > 0
+  const vv = varianceView(st.budgeted, st.actual)
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-4">
         <MoneyCard label="Budgeted" value={st.budgeted} tone="#D4AF37" />
         <MoneyCard label="Actual spent" value={st.actual} tone="#5F7A5F" />
-        <MoneyCard label={over ? 'Over budget' : 'Under budget'} value={Math.abs(st.variance)} tone={over ? '#B87883' : '#5F7A5F'} />
+        <MoneyCard label={vv.label} value={vv.amount} tone={vv.over ? '#B87883' : '#5F7A5F'} />
       </div>
       <p className="text-sm text-ink-soft">
         Every cost here comes from a task — open a task to add or change its budget and actual amounts.
