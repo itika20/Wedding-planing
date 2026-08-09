@@ -8,8 +8,9 @@ but you add/remove/rename events and set the dates yourself in setup — see [Ma
 There are no separate expense entries: every task carries an optional **budgeted** and **actual** amount
 (set on the task, or itemised across its subtasks), and they total up per event and overall.
 
-Built with **React + TypeScript + Vite + Tailwind + Framer Motion + Recharts**, with **Supabase**
-for real-time cloud sync and a **local-storage fallback** so it runs the moment you install it.
+Built with **React + TypeScript + Vite + Tailwind + Framer Motion**. It runs fully local (browser
+storage) out of the box, and deploys as a **Vercel** app backed by a **Neon** Postgres database with a
+small serverless API and a shared family passcode — see [Deploy for your family](#-deploy-for-your-family).
 
 ---
 
@@ -63,38 +64,31 @@ Deeper defaults live in code:
 
 The app starts empty, so once the config is yours just start adding tasks & expenses.
 
-## ☁️ Enable cloud sync (shared across the whole family)
+## ☁️ Deploy for your family
 
-Local mode stores data per-browser. To let Mom's phone and your laptop see the same live data,
-connect a free Supabase project:
+Local mode stores data per-browser. To let Mum's phone and your laptop see the same live data, deploy
+to **Vercel** with a **Neon** Postgres database — the browser never touches the database (a small
+serverless API in `/api` does), and access is gated by one **shared family passcode**.
 
-1. Create a project at **supabase.com** (free tier is plenty).
-2. In the Supabase dashboard → **SQL Editor** → paste & run [`supabase/schema.sql`](supabase/schema.sql).
-   This creates the tables, permissive family-access policies, and enables realtime.
-3. In **Project Settings → API**, copy the **Project URL** and the **anon public** key.
-4. Create `.env.local` (copy from [`.env.example`](.env.example)) and paste them:
-   ```
-   VITE_SUPABASE_URL=https://xxxx.supabase.co
-   VITE_SUPABASE_ANON_KEY=eyJhbGci...
-   ```
-5. Restart `npm run dev`. The topbar badge flips from **Local** to **Synced** and changes sync live
-   across devices.
+Full 15-minute walkthrough: **[`DEPLOY.md`](DEPLOY.md)**. In short:
 
-> ⚠️ **Before you deploy to the internet, read [`SECURITY.md`](SECURITY.md).** `schema.sql` ships with
-> a permissive policy meant for local/dev — anyone with the URL could read/write. For production, turn
-> on Supabase Auth (invite your family), run [`supabase/policies-prod.sql`](supabase/policies-prod.sql),
-> and the app will require a family sign-in. This is the only robust way to keep it family-only, because
-> the anon key is public by design.
+1. Create a **Neon** project and run [`neon/schema.sql`](neon/schema.sql).
+2. Import the repo into **Vercel** (it auto-detects Vite + the `/api` functions).
+3. Set four env vars — `VITE_USE_CLOUD=1`, `DATABASE_URL`, `FAMILY_PASSCODE`, `SESSION_SECRET`
+   (copy [`.env.example`](.env.example)).
+4. Deploy → open the URL → enter the passcode. Profiles seed automatically. Share the URL + passcode.
 
-## 🏗️ Build & deploy
+> The Neon serverless driver talks to the database over **HTTPS**, so there's no direct-Postgres
+> IPv4/pooler hassle. The connection string stays server-side; nothing sensitive ships to the browser.
+
+## 🏗️ Build locally
 
 ```bash
 npm run build      # type-checks then builds to dist/
 npm run preview    # preview the production build
 ```
 
-Deploy `dist/` to any static host (Vercel, Netlify, Cloudflare Pages). Add the two `VITE_SUPABASE_*`
-env vars in the host's dashboard for cloud sync in production.
+With no env vars this builds/runs in local mode. For the deployed app see [`DEPLOY.md`](DEPLOY.md).
 
 ## 🧱 Architecture
 
@@ -106,11 +100,14 @@ src/
     settings.ts           Wedding date + the user's events (from setup wizard)
     events.ts             Event helpers: Common bucket, default events, lookup by id
     expenses.ts           Task expense roll-up (subtasks override task-level) + totals
-    supabase.ts           Supabase client (null in local mode)
-    db.ts                 Persistence: localStorage cache + cloud CRUD + row mapping + realtime
+    cloud.ts              Cloud flag + fetch client for the /api backend (off in local mode)
+    db.ts                 Persistence: localStorage cache + cloud fetch/mutate + row mapping
     selectors.ts          Derived stats (event + overall progress, budgeted/actual/variance rollups)
     utils.ts              cn, INR formatting, date helpers
   store/useStore.ts       Zustand store — single source of truth + all actions + activity logging
+api/                      Vercel serverless API: login, logout, session, snapshot, mutate
+server/                   Backend helpers: neon.ts (DB access), auth.ts (passcode + cookie)
+neon/schema.sql           Postgres schema for the Neon database
   components/
     ui/                   ProgressRing, ProgressBar, StatCard, CountUp, Avatar, Badge, Modal,
                           EmptyState, Confetti, Toast
@@ -123,9 +120,10 @@ src/
 ```
 
 **Data flow:** components read/write the Zustand store → the store updates in memory (optimistic),
-writes the full snapshot to `localStorage`, and best-effort upserts the changed row to Supabase.
-In cloud mode a realtime subscription refreshes the store when other devices make changes. Expenses
-aren't stored separately — they're fields on tasks/subtasks, summed on read via `lib/expenses.ts`.
+writes the full snapshot to `localStorage`, and in cloud mode best-effort POSTs the change to `/api`
+(which writes to Neon). To pick up other devices' changes, the store refetches on window focus and every
+~30s. Expenses aren't stored separately — they're fields on tasks/subtasks, summed on read via
+`lib/expenses.ts`.
 
 ## 🎨 Design
 

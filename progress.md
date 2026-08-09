@@ -15,9 +15,9 @@ Last updated: 2026-08-09
 | Routing (React Router) | ✅ | Profile gate + nested app shell |
 | State management (Zustand store) | ✅ | Single source of truth, optimistic updates |
 | Persistence — localStorage fallback | ✅ | Works offline, per-device |
-| Persistence — Supabase cloud sync | ✅ | Auto-detects env vars, realtime subscription |
-| Family-only access (prod) | ✅ | Supabase Auth sign-in gate + allowlist RLS (`policies-prod.sql`); see `SECURITY.md` |
-| DB schema (`supabase/schema.sql`) | ✅ | Tables, RLS policies, realtime publication |
+| Cloud (Vercel + Neon) | ✅ | Serverless `/api` over Neon Postgres; refetch on focus + ~30s poll |
+| Family-only access (prod) | ✅ | Shared passcode → signed HttpOnly cookie checked on every API call; see `DEPLOY.md` |
+| DB schema (`neon/schema.sql`) | ✅ | users / tasks / activity tables |
 | Blank first-run (no sample data) | ✅ | Starts empty; you add your own, saved automatically |
 | First-run setup wizard | ✅ | Asks wedding date; add/remove/rename events with their own dates |
 | Dynamic events (not fixed) | ✅ | Events are user-defined in setup; add/remove anytime via Settings → Edit |
@@ -26,7 +26,7 @@ Last updated: 2026-08-09
 | Responsive layout (desktop/tablet/mobile) | ✅ | Sidebar collapses to drawer on mobile |
 | Loading / empty / error states | ✅ | Skeletons, empty states, cloud-error banner |
 | Toasts + micro-interactions | ✅ | Framer Motion transitions, animated counters/rings |
-| Code-splitting for production | ✅ | Vendor chunks (react/motion/supabase) |
+| Code-splitting for production | ✅ | Vendor chunks (react/motion) |
 
 ---
 
@@ -34,9 +34,9 @@ Last updated: 2026-08-09
 
 ### Access & profiles — ✅
 - **Local mode:** no login — data is device-private; just pick a profile.
-- **Cloud mode:** a family **sign-in gate** (Supabase Auth — magic-link email or Google) shows before the
-  dashboard; only allowlisted family emails get in (`is_family()` check), and "Sign out" lives in the
-  profile menu. See `SECURITY.md` + `supabase/policies-prod.sql`.
+- **Cloud mode (deployed):** a **shared family passcode** gate shows before the dashboard; entering it
+  sets a signed HttpOnly cookie the `/api` backend checks on every request. "Sign out" is in the profile
+  menu. Deploy on Vercel + Neon — see `DEPLOY.md`.
 - Netflix-style profile selection (4 cards, avatar, role, last-active, countdown); instant, no password.
 - Generic default profiles: **You / Partner / Mom / Dad** (fully editable in config).
 - Selected profile tags task ownership, subtask ticks and activity attribution.
@@ -73,7 +73,7 @@ Each event has its own workspace with tabs:
 - Quick-add task from anywhere.
 
 ### Settings — ✅
-- Profile switching, sync-mode status + Supabase setup guide.
+- Profile switching, sync-mode status + a pointer to deploy for the family (`DEPLOY.md`).
 - Events & dates summary, "make it your wedding" pointer, clear-all-data.
 
 ---
@@ -94,7 +94,7 @@ Bride-side only. Each guest is invited to one or more **functions** (multi-selec
 
 ### Documents — ✅
 Link-based document board grouped into folders (Contracts, Bills, Invitations, Designs, Guest lists);
-each entry opens its share link. (Real file upload deferred — needs Supabase Storage.)
+each entry opens its share link. (Real file upload deferred — needs cloud file storage.)
 
 ### Shopping — ✅ (linked to tasks)
 A live view of every task subtask flagged as a purchase (cart icon), grouped by event. One source of
@@ -108,7 +108,7 @@ attaches to a chosen task or an auto-created per-event "Shopping" bucket (remove
 - **Notifications** ⬜ — deadline / payment / overdue / booking reminders.
 - **Analytics page** ⬜ — spending trend, budget-vs-actual over time, task-completion speed, readiness score
   (per-event budget/actual bars already exist on the Expenses page & event Overviews).
-- **Receipt / attachment uploads** ⬜ — expense receipts, task attachments (needs Supabase Storage).
+- **Receipt / attachment uploads** ⬜ — expense receipts, task attachments (needs cloud file storage).
 - **Task comments** ⬜ — per-task discussion thread (checklist + activity log exist; comments don't).
 - **Event sub-tabs** ⬜ — dedicated Bookings / Checklist / Timeline / Photos tabs per event.
 - **Per-record activity log view** 🟡 — global feed exists; per-task history not surfaced.
@@ -119,13 +119,14 @@ attaches to a chosen task or an auto-created per-event "Shopping" bucket (remove
 
 1. **Make it yours:** set your wedding date & events in the setup wizard (Settings → Events & dates →
    Edit). Profiles live in `src/data/config.ts`; default events in `src/lib/events.ts`.
-2. **Enable cloud sync:** create a Supabase project, run `supabase/schema.sql`, put the URL + anon
-   key in `.env.local`, restart. See `README.md`.
+2. **Deploy for the family:** Vercel + Neon + a shared passcode — full runbook in `DEPLOY.md`.
 3. **Build the next section:** follow the existing store + modal + table patterns (see `Vendors` /
    `Guests` pages, or `TaskModal` / `TaskExpenseList`, as templates).
 
 ## ⚠️ Known limitations
-- The dev schema (`schema.sql`) ships permissive RLS. **Before deploying**, run `policies-prod.sql` and
-  enable Supabase Auth so only allowlisted family can read/write — see `SECURITY.md`.
+- Cross-device sync is by polling (refetch on focus + every ~30s), not realtime — changes appear within a
+  few seconds, not instantly.
+- Access is one shared family passcode (no per-person accounts) — fine for a family tool; rotate it in
+  Vercel if it ever leaks.
 - Notes are stored per-device (localStorage), not synced.
-- No real file storage yet (receipts/documents) — needs Supabase Storage wiring.
+- No real file storage yet (receipts/documents) — needs cloud file storage wiring.

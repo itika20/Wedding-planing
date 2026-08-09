@@ -42,16 +42,16 @@ export default function App() {
   const setupDone = useStore((s) => s.settings.setupDone)
   const requiresAuth = useStore((s) => s.requiresAuth)
   const authReady = useStore((s) => s.authReady)
-  const session = useStore((s) => s.session)
+  const authed = useStore((s) => s.authed)
 
   useEffect(() => {
     void init()
   }, [init])
 
-  // Cloud mode: nobody sees the dashboard (or setup) until an allowlisted
-  // family member is signed in. Local mode skips this entirely.
-  if (requiresAuth && !session) {
-    if (!authReady) return <Loader message="Checking your sign-in…" />
+  // Cloud mode: nobody sees the dashboard (or setup) until the family passcode
+  // has been entered. Local mode skips this entirely.
+  if (requiresAuth && !authed) {
+    if (!authReady) return <Loader message="Checking access…" />
     return <Login />
   }
 

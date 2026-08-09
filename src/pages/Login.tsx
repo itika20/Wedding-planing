@@ -1,40 +1,21 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { MailCheck } from 'lucide-react'
+import { KeyRound } from 'lucide-react'
 import { useStore } from '@/store/useStore'
-import { supabase } from '@/lib/supabase'
 
-// Cloud-mode sign-in gate. Only shown when Supabase sync is configured and no
-// family member is signed in. Magic-link email (no password) + optional Google.
+// Cloud-mode gate. Shown when the app is deployed (VITE_USE_CLOUD=1) and there's
+// no family session yet. One shared passcode, kept in the backend.
 export function Login() {
+  const signIn = useStore((s) => s.signIn)
   const authError = useStore((s) => s.authError)
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
+  const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
 
-  const sendLink = async () => {
-    const addr = email.trim()
-    if (!supabase || !addr) return
+  const submit = async () => {
+    if (!code.trim() || busy) return
     setBusy(true)
-    setErr(null)
-    const { error } = await supabase.auth.signInWithOtp({
-      email: addr,
-      options: { emailRedirectTo: window.location.origin },
-    })
+    await signIn(code)
     setBusy(false)
-    if (error) setErr(error.message)
-    else setSent(true)
-  }
-
-  const google = async () => {
-    if (!supabase) return
-    setErr(null)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin },
-    })
-    if (error) setErr(error.message)
   }
 
   return (
@@ -53,66 +34,28 @@ export function Login() {
         <div className="mb-8 text-center">
           <div className="mb-3 text-4xl">💍</div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-champagne-deep">Wedding 101</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Family sign-in</h1>
-          <p className="mt-2 text-sm text-ink-soft">
-            This dashboard is private to the family. Sign in with the email you were invited with.
-          </p>
+          <h1 className="mt-2 font-display text-3xl font-semibold text-ink">Family access</h1>
+          <p className="mt-2 text-sm text-ink-soft">This dashboard is private. Enter the passcode your family shares.</p>
         </div>
 
         <div className="card p-6">
-          {authError && (
-            <div className="mb-4 rounded-xl border border-clay/30 bg-clay-soft/40 px-3 py-2.5 text-sm text-clay">
-              {authError}
-            </div>
-          )}
-
-          {sent ? (
-            <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-sage/15 text-sage-deep">
-                <MailCheck size={22} />
-              </div>
-              <p className="font-medium text-ink">Check your email</p>
-              <p className="text-sm text-ink-soft">
-                We sent a sign-in link to <span className="font-medium text-ink">{email.trim()}</span>. Open it on this
-                device to continue.
-              </p>
-              <button className="btn-ghost mt-1 text-sm" onClick={() => setSent(false)}>
-                Use a different email
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <label className="label">Email</label>
-                <input
-                  type="email"
-                  className="input"
-                  value={email}
-                  autoFocus
-                  placeholder="you@example.com"
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendLink()}
-                />
-              </div>
-              {err && <p className="text-sm text-clay">{err}</p>}
-              <button className="btn-gold w-full justify-center" onClick={sendLink} disabled={busy || !email.trim()}>
-                {busy ? 'Sending…' : 'Email me a sign-in link'}
-              </button>
-
-              <div className="flex items-center gap-3 py-1">
-                <span className="h-px flex-1 bg-line" />
-                <span className="text-xs text-ink-faint">or</span>
-                <span className="h-px flex-1 bg-line" />
-              </div>
-
-              <button className="btn-outline w-full justify-center" onClick={google}>
-                Continue with Google
-              </button>
-              <p className="pt-1 text-center text-xs text-ink-faint">
-                Only invited family emails can get in. No passwords.
-              </p>
-            </div>
-          )}
+          <label className="label flex items-center gap-1.5">
+            <KeyRound size={13} className="text-champagne-deep" /> Passcode
+          </label>
+          <input
+            type="password"
+            className="input"
+            value={code}
+            autoFocus
+            placeholder="Enter the family passcode"
+            onChange={(e) => setCode(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+          />
+          {authError && <p className="mt-2 text-sm text-clay">{authError}</p>}
+          <button className="btn-gold mt-4 w-full justify-center" onClick={submit} disabled={busy || !code.trim()}>
+            {busy ? 'Checking…' : 'Enter'}
+          </button>
+          <p className="mt-3 text-center text-xs text-ink-faint">Ask whoever set up the dashboard for the passcode.</p>
         </div>
       </motion.div>
     </div>

@@ -89,10 +89,10 @@ Legend: ✅ built & ready to test · ⬜ intentionally a stub (not a bug).
 
 ## 9. Settings ✅
 - [ ] Switch profiles; "Back to profile screen".
-- [ ] Sync status card (says **Local** until Supabase is configured).
+- [ ] Sync status card (says **Local** in dev; **Synced** when deployed with cloud mode).
 - [ ] **Clear all data** — wipes everything back to a blank slate (use freely while testing).
-- [ ] _(Cloud mode only)_ With Supabase Auth enabled, a **family sign-in** screen shows before the
-      dashboard; local mode has no login. "Sign out" is in the profile menu. See `SECURITY.md`.
+- [ ] _(Deployed / cloud mode only)_ A **family passcode** screen shows before the dashboard; local dev
+      has no login. "Sign out" is in the profile menu. See `DEPLOY.md`.
 
 ## 10. Shopping — linked to tasks ✅
 - [ ] Flag a task subtask with the **cart icon** → it appears on the **Shopping** page under its event.

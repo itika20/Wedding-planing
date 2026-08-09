@@ -22,7 +22,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
   const events = useStore((s) => s.settings.events)
   const setCurrentUser = useStore((s) => s.setCurrentUser)
   const signOut = useStore((s) => s.signOut)
-  const session = useStore((s) => s.session)
+  const authed = useStore((s) => s.authed)
   const { openTask } = useUI()
 
   const [query, setQuery] = useState('')
@@ -153,7 +153,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
                 >
                   Switch profile
                 </button>
-                {session && (
+                {authed && (
                   <button
                     className="w-full rounded-lg px-3 py-2 text-left text-sm text-clay hover:bg-clay-soft/40"
                     onMouseDown={() => {

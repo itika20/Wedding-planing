@@ -1,9 +1,8 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Session } from '@supabase/supabase-js'
 import type { Activity, ChecklistItem, EventKey, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
-import { cloud, loadSnapshot, saveLocal, subscribeToChanges } from '@/lib/db'
-import { isCloud, supabase } from '@/lib/supabase'
+import { cloud, loadSnapshot, saveLocal } from '@/lib/db'
+import { isCloud, api } from '@/lib/cloud'
 import { loadSettings, saveSettings } from '@/lib/settings'
 import { nowISO } from '@/lib/utils'
 import { STATUS_META, USERS } from '@/data/config'
@@ -29,15 +28,16 @@ interface StoreState {
   mode: 'cloud' | 'local'
   loading: boolean
   cloudError?: string
-  // Auth (cloud mode only). In local mode `session` stays null and no gate shows.
-  requiresAuth: boolean // true when cloud sync is on → sign-in required
+  // Auth (cloud mode only). In local mode `authed` stays false and no gate shows.
+  requiresAuth: boolean // true when cloud sync is on → passcode required
   authReady: boolean // initial session check has resolved
-  session: Session | null
+  authed: boolean // a valid family session cookie is present
   authError?: string
   toast: { id: string; message: string; tone: 'success' | 'info' | 'error' } | null
 
   init: () => Promise<void>
   refresh: () => Promise<void>
+  signIn: (passcode: string) => Promise<boolean>
   signOut: () => Promise<void>
   completeSetup: (settings: WeddingSettings) => void
   updateSettings: (patch: Partial<WeddingSettings>) => void
@@ -71,8 +71,10 @@ interface StoreState {
   }) => void
 }
 
-let unsubscribe: (() => void) | null = null
-let authListener: { unsubscribe: () => void } | null = null
+// Cloud has no push channel (Neon), so we refetch on window focus and a gentle
+// interval to pick up changes made on other family members' devices.
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let focusHandler: (() => void) | null = null
 
 export const useStore = create<StoreState>((set, get) => {
   const persist = () => {
@@ -80,7 +82,6 @@ export const useStore = create<StoreState>((set, get) => {
     saveLocal({ tasks, activity, users } as Snapshot)
   }
 
-  // Load the snapshot (local, or cloud once authenticated) + wire realtime.
   const loadData = async () => {
     const { snapshot, mode, cloudError } = await loadSnapshot()
     set({
@@ -91,30 +92,19 @@ export const useStore = create<StoreState>((set, get) => {
       cloudError,
       loading: false,
     })
-    if (mode === 'cloud') {
-      unsubscribe?.()
-      unsubscribe = subscribeToChanges(() => void get().refresh())
-    }
   }
 
-  // With a cloud session in hand: check the family allowlist (best-effort — if
-  // the is_family() function / prod policies aren't set up yet, we allow), then
-  // load. Keeps a signed-in but non-allowlisted user out with a clear message.
-  const enterWithSession = async () => {
-    if (supabase) {
-      const { data: ok, error } = await supabase.rpc('is_family')
-      if (!error && ok === false) {
-        await supabase.auth.signOut()
-        set({
-          session: null,
-          authError: 'This account isn’t on the family allowlist. Ask to be added.',
-          loading: false,
-        })
-        return
-      }
-    }
-    set({ authError: undefined })
-    await loadData()
+  const startPolling = () => {
+    stopPolling()
+    focusHandler = () => void get().refresh()
+    window.addEventListener('focus', focusHandler)
+    pollTimer = setInterval(() => void get().refresh(), 30000)
+  }
+  const stopPolling = () => {
+    if (pollTimer) clearInterval(pollTimer)
+    if (focusHandler) window.removeEventListener('focus', focusHandler)
+    pollTimer = null
+    focusHandler = null
   }
 
   const logActivity = (verb: string, summary: string, eventKey: EventKey | null) => {
@@ -150,44 +140,29 @@ export const useStore = create<StoreState>((set, get) => {
     loading: true,
     requiresAuth: isCloud,
     authReady: false,
-    session: null,
+    authed: false,
     toast: null,
 
     init: async () => {
       set({ loading: true })
 
-      // Local mode: no auth gate — the data is device-private already.
-      if (!isCloud || !supabase) {
+      // Local mode: no gate — data is device-private already.
+      if (!isCloud) {
         set({ authReady: true })
         await loadData()
         return
       }
 
-      // Cloud mode: resolve the session first; the dashboard/data stay gated
-      // until an allowlisted family member is signed in.
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      set({ session, authReady: true })
-
-      authListener?.unsubscribe()
-      authListener = supabase.auth.onAuthStateChange((_event, next) => {
-        const had = Boolean(get().session)
-        set({ session: next })
-        if (next && !had) {
-          set({ loading: true })
-          void enterWithSession()
-        } else if (!next && had) {
-          unsubscribe?.()
-          set({ tasks: [], activity: [], currentUserId: null, loading: false })
-        }
-      }).data.subscription
-
-      if (!session) {
-        set({ loading: false }) // → App shows the sign-in screen
+      // Cloud mode: check for a family session cookie; the dashboard stays gated
+      // behind the passcode screen until one is present.
+      const ok = await api.session()
+      set({ authed: ok, authReady: true })
+      if (!ok) {
+        set({ loading: false }) // → App shows the passcode screen
         return
       }
-      await enterWithSession()
+      await loadData()
+      startPolling()
     },
 
     refresh: async () => {
@@ -199,10 +174,23 @@ export const useStore = create<StoreState>((set, get) => {
       })
     },
 
+    signIn: async (passcode) => {
+      const r = await api.login(passcode)
+      if (!r.ok) {
+        set({ authError: r.error })
+        return false
+      }
+      set({ authed: true, authError: undefined, loading: true })
+      await loadData()
+      startPolling()
+      return true
+    },
+
     signOut: async () => {
-      if (supabase) await supabase.auth.signOut()
+      await api.logout()
+      stopPolling()
       localStorage.removeItem(CURRENT_USER_KEY)
-      set({ session: null, currentUserId: null })
+      set({ authed: false, currentUserId: null, tasks: [], activity: [] })
     },
 
     completeSetup: (settings) => {

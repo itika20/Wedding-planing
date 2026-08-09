@@ -77,22 +77,21 @@ export function Settings() {
             </h2>
             <p className="text-sm text-ink-soft">
               {mode === 'cloud'
-                ? 'Changes sync live across every device your family uses.'
-                : 'Data is saved in this browser only. Add Supabase keys to sync across devices.'}
+                ? 'Changes sync across every device your family uses.'
+                : 'Data is saved in this browser only. Deploy to share it with your family.'}
             </p>
           </div>
         </div>
 
         {mode === 'local' && (
           <div className="mt-4 rounded-xl border border-line bg-offwhite/60 p-4 text-sm text-ink-soft">
-            <p className="font-semibold text-ink">To enable cloud sync</p>
+            <p className="font-semibold text-ink">To share with your family</p>
             <ol className="mt-2 list-decimal space-y-1 pl-5">
-              <li>Create a free project at supabase.com</li>
-              <li>Run the SQL in <code className="rounded bg-white px-1 py-0.5 text-xs">supabase/schema.sql</code></li>
-              <li>Copy your Project URL & anon key into <code className="rounded bg-white px-1 py-0.5 text-xs">.env.local</code></li>
-              <li>Restart the dev server — you'll see “Synced”.</li>
+              <li>Create a free Neon database and run <code className="rounded bg-white px-1 py-0.5 text-xs">neon/schema.sql</code></li>
+              <li>Deploy on Vercel and set the env vars (including your family passcode)</li>
+              <li>Share the URL &amp; passcode — everyone signs in with the same code</li>
             </ol>
-            <p className="mt-2 text-xs">Full steps are in the project README.</p>
+            <p className="mt-2 text-xs">Full steps are in <code className="rounded bg-white px-1 py-0.5 text-xs">DEPLOY.md</code>.</p>
           </div>
         )}
       </section>

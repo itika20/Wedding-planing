@@ -1,11 +1,11 @@
-import { supabase, isCloud } from './supabase'
+import { isCloud, api } from './cloud'
 import { USERS } from '@/data/config'
 import type { Activity, Snapshot, Task, User } from './types'
 
 const LS_KEY = 'wedding-dashboard:snapshot:v3'
 
-// A fresh, first-run workspace: no tasks, expenses or activity yet — the couple
-// adds their own. Profiles come from config so the picker still works.
+// A fresh, first-run workspace: no tasks or activity yet — the family adds their
+// own. Profiles come from config so the picker works immediately.
 function freshSnapshot(): Snapshot {
   const now = new Date().toISOString()
   return {
@@ -34,27 +34,8 @@ export function saveLocal(s: Snapshot): void {
   }
 }
 
-/* --------------------------- row <-> app mapping ------------------------- */
+/* --------------------------- row -> app mapping -------------------------- */
 
-const taskToRow = (t: Task) => ({
-  id: t.id,
-  event_key: t.eventKey,
-  title: t.title,
-  description: t.description,
-  assigned_to: t.assignedTo,
-  created_by: t.createdBy,
-  priority: t.priority,
-  status: t.status,
-  due_date: t.dueDate,
-  completion_pct: t.completionPct,
-  checklist: t.checklist,
-  budgeted: t.budgeted ?? 0,
-  actual: t.actual ?? 0,
-  shopping_list: t.shoppingList ?? false,
-  created_at: t.createdAt,
-  updated_at: t.updatedAt,
-  completed_at: t.completedAt,
-})
 const rowToTask = (r: any): Task => ({
   id: r.id,
   eventKey: r.event_key,
@@ -75,14 +56,6 @@ const rowToTask = (r: any): Task => ({
   completedAt: r.completed_at,
 })
 
-const activityToRow = (a: Activity) => ({
-  id: a.id,
-  user_id: a.userId,
-  verb: a.verb,
-  summary: a.summary,
-  event_key: a.eventKey,
-  created_at: a.createdAt,
-})
 const rowToActivity = (r: any): Activity => ({
   id: r.id,
   userId: r.user_id,
@@ -92,14 +65,6 @@ const rowToActivity = (r: any): Activity => ({
   createdAt: r.created_at,
 })
 
-const userToRow = (u: User) => ({
-  id: u.id,
-  name: u.name,
-  role: u.role,
-  emoji: u.emoji,
-  color: u.color,
-  last_active: u.lastActive,
-})
 const rowToUser = (r: any): User => ({
   id: r.id,
   name: r.name,
@@ -108,33 +73,6 @@ const rowToUser = (r: any): User => ({
   color: r.color,
   lastActive: r.last_active,
 })
-
-/* ------------------------------- cloud load ------------------------------ */
-
-async function cloudFetchAll(): Promise<Snapshot | null> {
-  if (!supabase) return null
-  const [t, a, u] = await Promise.all([
-    supabase.from('tasks').select('*'),
-    supabase.from('activity').select('*'),
-    supabase.from('users').select('*'),
-  ])
-  if (t.error || a.error || u.error) {
-    console.warn('[cloud] fetch error', t.error || a.error || u.error)
-    return null
-  }
-  return {
-    tasks: (t.data ?? []).map(rowToTask),
-    activity: (a.data ?? []).map(rowToActivity),
-    users: (u.data ?? []).map(rowToUser),
-  }
-}
-
-async function cloudSeed(snap: Snapshot): Promise<void> {
-  if (!supabase) return
-  await supabase.from('users').upsert(snap.users.map(userToRow))
-  await supabase.from('tasks').upsert(snap.tasks.map(taskToRow))
-  await supabase.from('activity').upsert(snap.activity.map(activityToRow))
-}
 
 /* -------------------------------- public API ----------------------------- */
 
@@ -145,24 +83,32 @@ export interface LoadResult {
 }
 
 export async function loadSnapshot(): Promise<LoadResult> {
-  if (isCloud && supabase) {
-    try {
-      let cloud = await cloudFetchAll()
-      if (cloud && cloud.users.length === 0 && cloud.tasks.length === 0) {
-        // Fresh project — register the profiles once, no sample data.
+  if (isCloud) {
+    const res = await api.snapshot()
+    if (res && res !== 'unauth') {
+      let users = (res.users ?? []).map(rowToUser)
+      // First run against a fresh database — register the family profiles once.
+      if (users.length === 0) {
         const fresh = freshSnapshot()
-        await cloudSeed(fresh)
-        cloud = fresh
+        for (const u of fresh.users) await api.mutate('upsertUser', u)
+        users = fresh.users
       }
-      if (cloud) {
-        saveLocal(cloud)
-        return { snapshot: cloud, mode: 'cloud' }
+      const snapshot: Snapshot = {
+        tasks: (res.tasks ?? []).map(rowToTask),
+        activity: (res.activity ?? []).map(rowToActivity),
+        users,
       }
-      return { snapshot: loadLocal() ?? freshSnapshot(), mode: 'local', cloudError: 'Could not reach Supabase — using local data.' }
-    } catch (err: any) {
-      return { snapshot: loadLocal() ?? freshSnapshot(), mode: 'local', cloudError: err?.message ?? 'Cloud error' }
+      saveLocal(snapshot)
+      return { snapshot, mode: 'cloud' }
+    }
+    // Server unreachable → show the last cached data so the app still opens.
+    return {
+      snapshot: loadLocal() ?? freshSnapshot(),
+      mode: 'cloud',
+      cloudError: res === 'unauth' ? undefined : 'Could not reach the server — showing your last saved data.',
     }
   }
+
   const local = loadLocal()
   if (local) return { snapshot: local, mode: 'local' }
   const fresh = freshSnapshot()
@@ -170,32 +116,24 @@ export async function loadSnapshot(): Promise<LoadResult> {
   return { snapshot: fresh, mode: 'local' }
 }
 
-// Best-effort single-row cloud writes. Local cache is saved by the store.
+// Best-effort single-row writes. The store already updated local state and cache.
 export const cloud = {
   enabled: isCloud,
   async upsertTask(t: Task) {
-    if (supabase) await supabase.from('tasks').upsert(taskToRow(t))
+    if (isCloud) await api.mutate('upsertTask', t)
   },
   async deleteTask(id: string) {
-    if (supabase) await supabase.from('tasks').delete().eq('id', id)
+    if (isCloud) await api.mutate('deleteTask', { id })
   },
   async addActivity(a: Activity) {
-    if (supabase) await supabase.from('activity').insert(activityToRow(a))
+    if (isCloud) await api.mutate('addActivity', a)
   },
   async upsertUser(u: User) {
-    if (supabase) await supabase.from('users').upsert(userToRow(u))
+    if (isCloud) await api.mutate('upsertUser', u)
   },
 }
 
-export function subscribeToChanges(onChange: () => void): () => void {
-  const client = supabase
-  if (!client) return () => {}
-  const channel = client
-    .channel('wedding-realtime')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, onChange)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'activity' }, onChange)
-    .subscribe()
-  return () => {
-    client.removeChannel(channel)
-  }
+// Neon has no realtime channel; the store refetches on focus + a gentle interval.
+export function subscribeToChanges(): () => void {
+  return () => {}
 }
