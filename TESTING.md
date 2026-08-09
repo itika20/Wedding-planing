@@ -30,8 +30,8 @@ Legend: ✅ built & ready to test · ⬜ intentionally a stub (not a bug).
 - [ ] Top-right avatar reflects who you picked.
 
 ## 2. Navigation (regression) ✅
-- [ ] Click every sidebar link (Home, Common Planning, each event, Expenses, Activity, Calendar,
-      Vendors, Guests, Shopping, Documents, Settings) → the page **renders** (no blank/invisible page).
+- [ ] Click every sidebar link (Home, Common Planning, each event, Expenses, Activity, Vendors, Guests,
+      Shopping, Documents, Settings) → the page **renders** (no blank/invisible page).
 - [ ] Rapidly click between several links → each destination is fully visible, never stuck faded out.
 - [ ] Mobile drawer links navigate and close the drawer.
 
@@ -91,6 +91,8 @@ Legend: ✅ built & ready to test · ⬜ intentionally a stub (not a bug).
 - [ ] Switch profiles; "Back to profile screen".
 - [ ] Sync status card (says **Local** until Supabase is configured).
 - [ ] **Clear all data** — wipes everything back to a blank slate (use freely while testing).
+- [ ] _(Cloud mode only)_ With Supabase Auth enabled, a **family sign-in** screen shows before the
+      dashboard; local mode has no login. "Sign out" is in the profile menu. See `SECURITY.md`.
 
 ## 10. Shopping — linked to tasks ✅
 - [ ] Flag a task subtask with the **cart icon** → it appears on the **Shopping** page under its event.

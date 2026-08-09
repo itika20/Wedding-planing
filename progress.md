@@ -2,7 +2,7 @@
 
 Status of the **Wedding 101** wedding-planning dashboard. Legend: ✅ done · 🟡 partial · ⬜ not started.
 
-Last updated: 2026-08-07
+Last updated: 2026-08-09
 
 ---
 
@@ -16,6 +16,7 @@ Last updated: 2026-08-07
 | State management (Zustand store) | ✅ | Single source of truth, optimistic updates |
 | Persistence — localStorage fallback | ✅ | Works offline, per-device |
 | Persistence — Supabase cloud sync | ✅ | Auto-detects env vars, realtime subscription |
+| Family-only access (prod) | ✅ | Supabase Auth sign-in gate + allowlist RLS (`policies-prod.sql`); see `SECURITY.md` |
 | DB schema (`supabase/schema.sql`) | ✅ | Tables, RLS policies, realtime publication |
 | Blank first-run (no sample data) | ✅ | Starts empty; you add your own, saved automatically |
 | First-run setup wizard | ✅ | Asks wedding date; add/remove/rename events with their own dates |
@@ -25,15 +26,18 @@ Last updated: 2026-08-07
 | Responsive layout (desktop/tablet/mobile) | ✅ | Sidebar collapses to drawer on mobile |
 | Loading / empty / error states | ✅ | Skeletons, empty states, cloud-error banner |
 | Toasts + micro-interactions | ✅ | Framer Motion transitions, animated counters/rings |
-| Code-splitting for production | ✅ | Vendor chunks (react/charts/motion/supabase) |
+| Code-splitting for production | ✅ | Vendor chunks (react/motion/supabase) |
 
 ---
 
 ## ✅ Features built (deep core loop)
 
-### Authentication / profiles — ✅
-- Netflix-style profile selection screen (4 cards, avatar, role, last-active, countdown).
-- Instant sign-in, no password. Switch profile from topbar or Settings.
+### Access & profiles — ✅
+- **Local mode:** no login — data is device-private; just pick a profile.
+- **Cloud mode:** a family **sign-in gate** (Supabase Auth — magic-link email or Google) shows before the
+  dashboard; only allowlisted family emails get in (`is_family()` check), and "Sign out" lives in the
+  profile menu. See `SECURITY.md` + `supabase/policies-prod.sql`.
+- Netflix-style profile selection (4 cards, avatar, role, last-active, countdown); instant, no password.
 - Generic default profiles: **You / Partner / Mom / Dad** (fully editable in config).
 - Selected profile tags task ownership, subtask ticks and activity attribution.
 
@@ -121,6 +125,7 @@ attaches to a chosen task or an auto-created per-event "Shopping" bucket (remove
    `Guests` pages, or `TaskModal` / `TaskExpenseList`, as templates).
 
 ## ⚠️ Known limitations
-- Cloud mode uses permissive RLS policies (private family tool) — keep the deployed URL private.
+- The dev schema (`schema.sql`) ships permissive RLS. **Before deploying**, run `policies-prod.sql` and
+  enable Supabase Auth so only allowlisted family can read/write — see `SECURITY.md`.
 - Notes are stored per-device (localStorage), not synced.
 - No real file storage yet (receipts/documents) — needs Supabase Storage wiring.
