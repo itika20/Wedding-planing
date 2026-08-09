@@ -2,9 +2,17 @@
 // The frontend maps these rows to its domain types (see src/lib/db.ts).
 import { neon } from '@neondatabase/serverless'
 
-const sql = neon(process.env.DATABASE_URL as string)
+// Lazy: build the query function per request. neon() is a cheap one-shot HTTP
+// query (no pool), and doing it here — not at module load — means a missing
+// DATABASE_URL returns a clean error instead of crashing the whole function.
+function getSql() {
+  const url = process.env.DATABASE_URL
+  if (!url) throw new Error('DATABASE_URL is not set on the server')
+  return neon(url)
+}
 
 export async function fetchSnapshot() {
+  const sql = getSql()
   const [tasks, activity, users, settings] = await Promise.all([
     sql`select * from tasks`,
     sql`select * from activity order by created_at desc limit 300`,
@@ -15,6 +23,7 @@ export async function fetchSnapshot() {
 }
 
 export async function saveSettings(data: Record<string, any>) {
+  const sql = getSql()
   await sql`
     insert into app_settings (id, data, updated_at)
     values ('app', ${JSON.stringify(data)}::jsonb, now())
@@ -22,12 +31,12 @@ export async function saveSettings(data: Record<string, any>) {
   `
 }
 
-// Loosely typed — the payloads come from the frontend's domain objects.
 type AnyTask = Record<string, any>
 type AnyActivity = Record<string, any>
 type AnyUser = Record<string, any>
 
 export async function upsertTask(t: AnyTask) {
+  const sql = getSql()
   await sql`
     insert into tasks
       (id, event_key, title, description, assigned_to, created_by, priority, status,
@@ -58,10 +67,12 @@ export async function upsertTask(t: AnyTask) {
 }
 
 export async function deleteTask(id: string) {
+  const sql = getSql()
   await sql`delete from tasks where id = ${id}`
 }
 
 export async function addActivity(a: AnyActivity) {
+  const sql = getSql()
   await sql`
     insert into activity (id, user_id, verb, summary, event_key, created_at)
     values (${a.id}, ${a.userId ?? null}, ${a.verb ?? null}, ${a.summary ?? null}, ${a.eventKey ?? null}, ${a.createdAt})
@@ -70,6 +81,7 @@ export async function addActivity(a: AnyActivity) {
 }
 
 export async function upsertUser(u: AnyUser) {
+  const sql = getSql()
   await sql`
     insert into users (id, name, role, emoji, color, last_active)
     values (${u.id}, ${u.name}, ${u.role ?? null}, ${u.emoji ?? null}, ${u.color ?? null}, ${u.lastActive})

@@ -1,7 +1,9 @@
 // Shared-passcode session, used by the serverless API functions.
 // A correct passcode mints a signed, HttpOnly cookie; every data endpoint checks it.
 import * as crypto from 'node:crypto'
-import type { VercelRequest } from '@vercel/node'
+
+// Minimal request shape (avoids depending on @vercel/node at build/runtime).
+type Req = { headers: { cookie?: string } }
 
 const COOKIE = 'wd_session'
 const MAX_AGE = 60 * 60 * 24 * 30 // 30 days, in seconds
@@ -50,12 +52,12 @@ export function clearCookie(): string {
   return `${COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`
 }
 
-function readCookie(req: VercelRequest): string | undefined {
+function readCookie(req: Req): string | undefined {
   const raw = req.headers.cookie || ''
   const m = raw.match(new RegExp(`(?:^|; )${COOKIE}=([^;]+)`))
   return m ? m[1] : undefined
 }
 
-export function isAuthed(req: VercelRequest): boolean {
+export function isAuthed(req: Req): boolean {
   return verifyToken(readCookie(req))
 }
