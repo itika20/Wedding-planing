@@ -7,6 +7,12 @@ static frontend **plus a small serverless backend** (in `/api`) that talks to a
 You'll do the clicking (it needs your Neon + Vercel accounts and secrets); the code
 is already deploy-ready. Budget ~15 minutes.
 
+> **Already deployed and updating?** Two things to do after pulling the latest code:
+> (1) re-run [`neon/schema.sql`](neon/schema.sql) in Neon — it now adds a shared
+> `app_settings` table so the wedding date & events sync across everyone; and
+> (2) push to GitHub and let Vercel redeploy. You no longer need the `VITE_USE_CLOUD`
+> variable (cloud mode is auto-detected) — you can leave or delete it.
+
 > Why this setup: the browser never touches the database — only the `/api` functions
 > do, using the Neon **serverless driver over HTTPS**. That also sidesteps the
 > IPv4/pooler headaches of a direct Postgres connection.
@@ -34,15 +40,17 @@ move it, just note the repo — Vercel imports from GitHub.
 1. Sign in at **vercel.com** → **Add New → Project** → import the repo.
 2. Vercel auto-detects **Vite** (build `npm run build`, output `dist`) and picks up the
    `/api` functions. Leave the defaults.
-3. Before the first deploy, open **Environment Variables** and add these four
+3. Before the first deploy, open **Environment Variables** and add these three
    (Production, and Preview if you want previews to work):
 
    | Name | Value |
    | --- | --- |
-   | `VITE_USE_CLOUD` | `1` |
    | `DATABASE_URL` | your Neon **pooled** connection string from step 1 |
    | `FAMILY_PASSCODE` | the passcode you'll share with the family |
    | `SESSION_SECRET` | a long random string — generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+
+   (Cloud mode turns on automatically once the `/api` backend is live — there's no
+   frontend flag to set.)
 
 4. Click **Deploy**. When it finishes you'll get a URL like `wedding-101.vercel.app`.
 

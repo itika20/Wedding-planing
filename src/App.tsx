@@ -55,10 +55,14 @@ export default function App() {
     return <Login />
   }
 
-  // First run (or "edit details"): collect the wedding date & events before anything else.
-  if (!setupDone) return <SetupWizard />
+  // Wait for the data load (which, in cloud mode, brings the shared wedding date
+  // & events) before deciding whether setup is needed — otherwise every device
+  // would flash the setup wizard even after someone has already set things up.
+  if (!authReady || loading) return <Loader message="Setting up your wedding workspace…" />
 
-  if (loading) return <Loader message="Setting up your wedding workspace…" />
+  // First run: collect the wedding date & events. In cloud mode this only shows
+  // when nobody has completed setup yet.
+  if (!setupDone) return <SetupWizard />
 
 
   return (

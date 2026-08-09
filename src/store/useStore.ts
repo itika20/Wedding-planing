@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
 import type { Activity, ChecklistItem, EventKey, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
-import { cloud, loadSnapshot, saveLocal } from '@/lib/db'
-import { isCloud, api } from '@/lib/cloud'
+import { cloud, loadSnapshot, saveLocal, saveSettingsCloud } from '@/lib/db'
+import { api } from '@/lib/cloud'
 import { loadSettings, saveSettings } from '@/lib/settings'
 import { nowISO } from '@/lib/utils'
 import { STATUS_META, USERS } from '@/data/config'
@@ -83,7 +83,7 @@ export const useStore = create<StoreState>((set, get) => {
   }
 
   const loadData = async () => {
-    const { snapshot, mode, cloudError } = await loadSnapshot()
+    const { snapshot, mode, cloudError, serverSettings } = await loadSnapshot()
     set({
       tasks: snapshot.tasks,
       activity: snapshot.activity,
@@ -92,6 +92,17 @@ export const useStore = create<StoreState>((set, get) => {
       cloudError,
       loading: false,
     })
+    if (mode !== 'cloud') return
+    // In cloud mode the shared settings (date + events) are the source of truth,
+    // so everyone skips the wizard and sees the same events once someone set up.
+    if (serverSettings && serverSettings.setupDone) {
+      saveSettings(serverSettings)
+      set({ settings: serverSettings })
+    } else if (get().settings.setupDone) {
+      // Server has no shared settings yet — seed them from this device's completed
+      // setup so the rest of the family picks them up. (Bootstraps older deploys.)
+      saveSettingsCloud(get().settings)
+    }
   }
 
   const startPolling = () => {
@@ -138,7 +149,7 @@ export const useStore = create<StoreState>((set, get) => {
     settings: loadSettings(),
     mode: 'local',
     loading: true,
-    requiresAuth: isCloud,
+    requiresAuth: false,
     authReady: false,
     authed: false,
     toast: null,
@@ -146,23 +157,17 @@ export const useStore = create<StoreState>((set, get) => {
     init: async () => {
       set({ loading: true })
 
-      // Local mode: no gate — data is device-private already.
-      if (!isCloud) {
-        set({ authReady: true })
-        await loadData()
-        return
-      }
+      // Auto-detect the backend. If it's there (deployed), we're in cloud mode and
+      // need the family passcode; if not, run fully local (device-private data).
+      const { cloud: cloudOn, authed } = await api.probe()
+      set({ requiresAuth: cloudOn, authed, authReady: true })
 
-      // Cloud mode: check for a family session cookie; the dashboard stays gated
-      // behind the passcode screen until one is present.
-      const ok = await api.session()
-      set({ authed: ok, authReady: true })
-      if (!ok) {
+      if (cloudOn && !authed) {
         set({ loading: false }) // → App shows the passcode screen
         return
       }
       await loadData()
-      startPolling()
+      if (cloudOn) startPolling()
     },
 
     refresh: async () => {
@@ -197,6 +202,7 @@ export const useStore = create<StoreState>((set, get) => {
       const next = { ...settings, setupDone: true }
       saveSettings(next)
       set({ settings: next })
+      saveSettingsCloud(next) // share the date + events with the whole family
     },
 
     updateSettings: (patch) => {

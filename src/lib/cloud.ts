@@ -1,12 +1,20 @@
 // Frontend cloud client. Talks to our own serverless API (same origin) which
-// fronts Neon. Enabled in production via VITE_USE_CLOUD=1; when off, the app
-// runs fully local (localStorage) — handy for offline dev.
-export const isCloud = import.meta.env.VITE_USE_CLOUD === '1'
+// fronts Neon. Cloud mode is AUTO-DETECTED at startup by probing /api — when the
+// backend is present (deployed), it turns on; otherwise the app runs fully local
+// (localStorage). No build-time flag to forget.
+let cloudMode = false
+export function isCloud(): boolean {
+  return cloudMode
+}
+export function setCloud(v: boolean): void {
+  cloudMode = v
+}
 
 export interface RawSnapshot {
   tasks: any[]
   activity: any[]
   users: any[]
+  settings?: any
 }
 
 async function post(path: string, body?: unknown) {
@@ -18,13 +26,22 @@ async function post(path: string, body?: unknown) {
 }
 
 export const api = {
-  // true = a valid family session cookie is present
-  async session(): Promise<boolean> {
+  // Is a backend present, and do we have a valid family session?
+  // A real API answers /api/session with JSON; the local dev server (no backend)
+  // returns the SPA's index.html, which we treat as "local mode".
+  async probe(): Promise<{ cloud: boolean; authed: boolean }> {
     try {
-      const r = await fetch('/api/session')
-      return r.ok
+      const r = await fetch('/api/session', { headers: { accept: 'application/json' } })
+      const ct = r.headers.get('content-type') || ''
+      if (!ct.includes('application/json')) return { cloud: false, authed: false }
+      const j = await r.json().catch(() => null)
+      if (j && typeof j.authed === 'boolean') {
+        setCloud(true)
+        return { cloud: true, authed: j.authed }
+      }
+      return { cloud: false, authed: false }
     } catch {
-      return false
+      return { cloud: false, authed: false }
     }
   },
 

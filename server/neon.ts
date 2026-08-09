@@ -5,12 +5,21 @@ import { neon } from '@neondatabase/serverless'
 const sql = neon(process.env.DATABASE_URL as string)
 
 export async function fetchSnapshot() {
-  const [tasks, activity, users] = await Promise.all([
+  const [tasks, activity, users, settings] = await Promise.all([
     sql`select * from tasks`,
     sql`select * from activity order by created_at desc limit 300`,
     sql`select * from users`,
+    sql`select data from app_settings where id = 'app'`,
   ])
-  return { tasks, activity, users }
+  return { tasks, activity, users, settings: settings[0]?.data ?? null }
+}
+
+export async function saveSettings(data: Record<string, any>) {
+  await sql`
+    insert into app_settings (id, data, updated_at)
+    values ('app', ${JSON.stringify(data)}::jsonb, now())
+    on conflict (id) do update set data = excluded.data, updated_at = now()
+  `
 }
 
 // Loosely typed — the payloads come from the frontend's domain objects.

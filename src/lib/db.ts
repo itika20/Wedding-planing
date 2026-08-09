@@ -1,6 +1,6 @@
 import { isCloud, api } from './cloud'
 import { USERS } from '@/data/config'
-import type { Activity, Snapshot, Task, User } from './types'
+import type { Activity, Snapshot, Task, User, WeddingSettings } from './types'
 
 const LS_KEY = 'wedding-dashboard:snapshot:v3'
 
@@ -80,10 +80,13 @@ export interface LoadResult {
   snapshot: Snapshot
   mode: 'cloud' | 'local'
   cloudError?: string
+  // The shared wedding settings (date + events) from the server, when cloud is on
+  // and someone has already completed setup. null = not set yet on the server.
+  serverSettings?: WeddingSettings | null
 }
 
 export async function loadSnapshot(): Promise<LoadResult> {
-  if (isCloud) {
+  if (isCloud()) {
     const res = await api.snapshot()
     if (res && res !== 'unauth') {
       let users = (res.users ?? []).map(rowToUser)
@@ -99,7 +102,7 @@ export async function loadSnapshot(): Promise<LoadResult> {
         users,
       }
       saveLocal(snapshot)
-      return { snapshot, mode: 'cloud' }
+      return { snapshot, mode: 'cloud', serverSettings: (res.settings as WeddingSettings) ?? null }
     }
     // Server unreachable → show the last cached data so the app still opens.
     return {
@@ -116,20 +119,26 @@ export async function loadSnapshot(): Promise<LoadResult> {
   return { snapshot: fresh, mode: 'local' }
 }
 
+export function saveSettingsCloud(settings: WeddingSettings): void {
+  if (isCloud()) void api.mutate('saveSettings', settings)
+}
+
 // Best-effort single-row writes. The store already updated local state and cache.
 export const cloud = {
-  enabled: isCloud,
+  get enabled() {
+    return isCloud()
+  },
   async upsertTask(t: Task) {
-    if (isCloud) await api.mutate('upsertTask', t)
+    if (isCloud()) await api.mutate('upsertTask', t)
   },
   async deleteTask(id: string) {
-    if (isCloud) await api.mutate('deleteTask', { id })
+    if (isCloud()) await api.mutate('deleteTask', { id })
   },
   async addActivity(a: Activity) {
-    if (isCloud) await api.mutate('addActivity', a)
+    if (isCloud()) await api.mutate('addActivity', a)
   },
   async upsertUser(u: User) {
-    if (isCloud) await api.mutate('upsertUser', u)
+    if (isCloud()) await api.mutate('upsertUser', u)
   },
 }
 

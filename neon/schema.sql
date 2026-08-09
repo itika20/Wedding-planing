@@ -42,5 +42,13 @@ create table if not exists activity (
   created_at timestamptz default now()
 );
 
+-- Shared wedding settings (date + events). Single row, id = 'app', so the whole
+-- family sees the same setup instead of each device running the wizard again.
+create table if not exists app_settings (
+  id         text primary key,
+  data       jsonb not null,
+  updated_at timestamptz default now()
+);
+
 create index if not exists tasks_event_idx   on tasks (event_key);
 create index if not exists activity_time_idx on activity (created_at desc);
