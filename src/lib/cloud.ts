@@ -15,6 +15,7 @@ export interface RawSnapshot {
   activity: any[]
   users: any[]
   settings?: any
+  collections?: { id: string; kind: string; data: any }[]
 }
 
 async function post(path: string, body?: unknown) {

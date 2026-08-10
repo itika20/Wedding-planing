@@ -18,8 +18,8 @@ export async function fetchSnapshot() {
     sql`select * from activity order by created_at desc limit 300`,
     sql`select * from users`,
   ])
-  // Settings are queried separately and tolerantly — an older deploy might not
-  // have the app_settings table yet, and that shouldn't block loading everything.
+  // Settings and collections are queried separately and tolerantly — an older
+  // deploy might not have those tables yet, and that shouldn't block everything.
   let settings: any = null
   try {
     const rows = await sql`select data from app_settings where id = 'app'`
@@ -27,7 +27,29 @@ export async function fetchSnapshot() {
   } catch {
     /* app_settings table not created yet — run neon/schema.sql */
   }
-  return { tasks, activity, users, settings }
+
+  let collections: any[] = []
+  try {
+    collections = await sql`select id, kind, data from collections`
+  } catch {
+    /* collections table not created yet — run neon/schema.sql */
+  }
+
+  return { tasks, activity, users, settings, collections }
+}
+
+export async function upsertCollection(kind: string, item: Record<string, any>) {
+  const sql = getSql()
+  await sql`
+    insert into collections (id, kind, data)
+    values (${item.id}, ${kind}, ${JSON.stringify(item)}::jsonb)
+    on conflict (id) do update set kind = excluded.kind, data = excluded.data
+  `
+}
+
+export async function deleteCollection(id: string) {
+  const sql = getSql()
+  await sql`delete from collections where id = ${id}`
 }
 
 export async function saveSettings(data: Record<string, any>) {

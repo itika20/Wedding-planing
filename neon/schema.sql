@@ -50,5 +50,15 @@ create table if not exists app_settings (
   updated_at timestamptz default now()
 );
 
+-- Vendors / guests / documents — each item stored as a row, tagged with its
+-- kind, so these sync across the family like tasks do.
+create table if not exists collections (
+  id         text primary key,
+  kind       text not null, -- 'vendors' | 'guests' | 'documents'
+  data       jsonb not null,
+  created_at timestamptz default now()
+);
+create index if not exists collections_kind_idx on collections (kind);
+
 create index if not exists tasks_event_idx   on tasks (event_key);
 create index if not exists activity_time_idx on activity (created_at desc);

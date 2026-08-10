@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid'
 import type { Activity, ChecklistItem, EventKey, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
 import { cloud, loadSnapshot, saveLocal, saveSettingsCloud } from '@/lib/db'
 import { api } from '@/lib/cloud'
+import { useCollections } from '@/store/useCollections'
 import { loadSettings, saveSettings } from '@/lib/settings'
 import { nowISO } from '@/lib/utils'
 import { STATUS_META, USERS } from '@/data/config'
@@ -83,7 +84,7 @@ export const useStore = create<StoreState>((set, get) => {
   }
 
   const loadData = async () => {
-    const { snapshot, mode, cloudError, serverSettings } = await loadSnapshot()
+    const { snapshot, mode, cloudError, serverSettings, serverCollections } = await loadSnapshot()
     set({
       tasks: snapshot.tasks,
       activity: snapshot.activity,
@@ -103,6 +104,8 @@ export const useStore = create<StoreState>((set, get) => {
       // setup so the rest of the family picks them up. (Bootstraps older deploys.)
       saveSettingsCloud(get().settings)
     }
+    // Vendors / guests / documents. Initial load bootstraps local-only items up.
+    if (serverCollections) useCollections.getState().hydrate(serverCollections, true)
   }
 
   const startPolling = () => {
@@ -171,12 +174,14 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     refresh: async () => {
-      const { snapshot } = await loadSnapshot()
+      const { snapshot, serverCollections } = await loadSnapshot()
       set({
         tasks: snapshot.tasks,
         activity: snapshot.activity,
         users: reconcileUsers(snapshot.users),
       })
+      // Pick up vendors/guests/documents changed on other devices (no bootstrap).
+      if (serverCollections) useCollections.getState().hydrate(serverCollections, false)
     },
 
     signIn: async (passcode) => {

@@ -1,5 +1,13 @@
 import { isAuthed } from '../server/auth'
-import { addActivity, deleteTask, saveSettings, upsertTask, upsertUser } from '../server/neon'
+import {
+  addActivity,
+  deleteCollection,
+  deleteTask,
+  saveSettings,
+  upsertCollection,
+  upsertTask,
+  upsertUser,
+} from '../server/neon'
 
 export default async function handler(req: any, res: any) {
   try {
@@ -22,6 +30,12 @@ export default async function handler(req: any, res: any) {
         break
       case 'saveSettings':
         await saveSettings(data)
+        break
+      case 'upsertCollection':
+        await upsertCollection(data.kind, data.item)
+        break
+      case 'deleteCollection':
+        await deleteCollection(data.id)
         break
       default:
         return res.status(400).json({ error: `Unknown op: ${op}` })

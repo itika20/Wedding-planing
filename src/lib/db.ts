@@ -1,6 +1,6 @@
 import { isCloud, api } from './cloud'
 import { USERS } from '@/data/config'
-import type { Activity, Snapshot, Task, User, WeddingSettings } from './types'
+import type { Activity, Collections, Snapshot, Task, User, WeddingSettings } from './types'
 
 const LS_KEY = 'wedding-dashboard:snapshot:v3'
 
@@ -83,6 +83,18 @@ export interface LoadResult {
   // The shared wedding settings (date + events) from the server, when cloud is on
   // and someone has already completed setup. null = not set yet on the server.
   serverSettings?: WeddingSettings | null
+  // Vendors / guests / documents from the server (cloud mode only).
+  serverCollections?: Collections
+}
+
+function groupCollections(rows: { kind: string; data: any }[] | undefined): Collections {
+  const grouped: Collections = { vendors: [], guests: [], documents: [] }
+  for (const row of rows ?? []) {
+    if (row.kind === 'vendors' || row.kind === 'guests' || row.kind === 'documents') {
+      ;(grouped[row.kind] as any[]).push(row.data)
+    }
+  }
+  return grouped
 }
 
 export async function loadSnapshot(): Promise<LoadResult> {
@@ -102,7 +114,12 @@ export async function loadSnapshot(): Promise<LoadResult> {
         users,
       }
       saveLocal(snapshot)
-      return { snapshot, mode: 'cloud', serverSettings: (res.settings as WeddingSettings) ?? null }
+      return {
+        snapshot,
+        mode: 'cloud',
+        serverSettings: (res.settings as WeddingSettings) ?? null,
+        serverCollections: groupCollections(res.collections),
+      }
     }
     // Server reachable but failed, or unreachable → show last cached data so the
     // app still opens, and surface the real reason when the server gave one.
