@@ -7,6 +7,7 @@ import { Login } from '@/pages/Login'
 import { ProfileSelect } from '@/pages/ProfileSelect'
 import { SetupWizard } from '@/pages/SetupWizard'
 import { Home } from '@/pages/Home'
+import { AllTasks } from '@/pages/AllTasks'
 import { EventWorkspace } from '@/pages/EventWorkspace'
 import { Expenses } from '@/pages/Expenses'
 import { ActivityPage } from '@/pages/ActivityPage'
@@ -79,6 +80,7 @@ export default function App() {
         >
           <Route index element={<Navigate to="/app/home" replace />} />
           <Route path="home" element={<Home />} />
+          <Route path="tasks" element={<AllTasks />} />
           <Route path="event/:key" element={<EventWorkspace />} />
           <Route path="expenses" element={<Expenses />} />
           <Route path="budget" element={<Navigate to="/app/expenses" replace />} />

@@ -46,13 +46,17 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
       onDragStart={(e) => {
         ;(e as unknown as DragEvent).dataTransfer?.setData('text/task', task.id)
       }}
-      className={cn('group card cursor-grab p-3.5 active:cursor-grabbing', isDone && 'opacity-80')}
+      onClick={() => onEdit(task)}
+      className={cn('group card cursor-pointer p-3.5 active:cursor-grabbing', isDone && 'opacity-80')}
       style={{ borderLeft: `3px solid ${event.accent}` }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2">
           <button
-            onClick={() => updateTask(task.id, { status: isDone ? 'todo' : 'completed' })}
+            onClick={(e) => {
+              e.stopPropagation()
+              updateTask(task.id, { status: isDone ? 'todo' : 'completed' })
+            }}
             className={cn(
               'mt-0.5 grid shrink-0 place-items-center rounded-full border transition',
               isDone ? 'border-sage-deep bg-sage-deep text-white' : 'border-line hover:border-champagne',
@@ -62,20 +66,16 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
           >
             {isDone && <Check size={11} />}
           </button>
-          <button
-            onClick={() => onEdit(task)}
-            className={cn(
-              'text-left text-sm font-medium leading-snug text-ink transition hover:text-champagne-deep',
-              isDone && 'text-ink-soft line-through',
-            )}
-            title="Edit task"
-          >
+          <p className={cn('text-sm font-medium leading-snug text-ink', isDone && 'text-ink-soft line-through')}>
             {task.title}
-          </button>
+          </p>
         </div>
         <div className="relative">
           <button
-            onClick={() => setMenu((v) => !v)}
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenu((v) => !v)
+            }}
             onBlur={() => setTimeout(() => setMenu(false), 150)}
             className="rounded-md p-1 text-ink-faint opacity-0 transition hover:bg-ink/5 hover:text-ink group-hover:opacity-100"
           >
@@ -83,10 +83,10 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
           </button>
           {menu && (
             <div className="absolute right-0 top-7 z-20 w-36 overflow-hidden rounded-lg border border-line bg-white p-1 shadow-lift">
-              <button className="menu-item" onMouseDown={() => duplicateTask(task.id)}>
+              <button className="menu-item" onMouseDown={(e) => { e.stopPropagation(); duplicateTask(task.id) }}>
                 <Copy size={13} /> Duplicate
               </button>
-              <button className="menu-item text-clay" onMouseDown={() => deleteTask(task.id)}>
+              <button className="menu-item text-clay" onMouseDown={(e) => { e.stopPropagation(); deleteTask(task.id) }}>
                 <Trash2 size={13} /> Delete
               </button>
             </div>
