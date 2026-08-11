@@ -58,11 +58,10 @@ interface StoreState {
   toggleSubtask: (taskId: string, itemId: string) => void
   setSubtask: (taskId: string, itemId: string, patch: Partial<ChecklistItem>) => void
   removeSubtask: (taskId: string, itemId: string) => void
-  // Add a purchase from the Shopping view. Reflects into the event's task: an
-  // explicit task if given, otherwise the event's auto "Shopping" bucket.
+  // Add a purchase from the Shopping view — a subtask on the event's auto
+  // "Shopping" bucket task (created if needed).
   addShoppingItem: (input: {
     eventKey: EventKey
-    taskId?: string
     text: string
     cost?: number // estimated (budgeted)
     actual?: number // what it actually cost (once bought)
@@ -255,6 +254,7 @@ export const useStore = create<StoreState>((set, get) => {
         checklist: input.checklist ?? [],
         budgeted: input.budgeted ?? 0,
         actual: input.actual ?? 0,
+        shopping: input.shopping ?? false,
         shoppingList: input.shoppingList ?? false,
         createdAt: ts,
         updatedAt: ts,
@@ -375,7 +375,7 @@ export const useStore = create<StoreState>((set, get) => {
       get().updateTask(taskId, { checklist })
     },
 
-    addShoppingItem: ({ eventKey, taskId, text, cost, actual, forWhom, store, purchased }) => {
+    addShoppingItem: ({ eventKey, text, cost, actual, forWhom, store, purchased }) => {
       const name = text.trim()
       if (!name) return
       const uid = get().currentUserId ?? null
@@ -385,20 +385,21 @@ export const useStore = create<StoreState>((set, get) => {
         done: Boolean(purchased),
         checkedBy: purchased ? uid : null,
         checkedAt: purchased ? nowISO() : null,
-        shopping: true,
         budgeted: cost && cost > 0 ? Math.round(cost) : undefined,
         actual: actual && actual > 0 ? Math.round(actual) : undefined,
         forWhom: forWhom?.trim() || undefined,
         store: store?.trim() || undefined,
       }
 
-      // Attach to the chosen task, or the event's Shopping bucket (create if none).
-      const explicit = taskId ? get().tasks.find((t) => t.id === taskId) : undefined
-      const target = explicit ?? get().tasks.find((t) => t.eventKey === eventKey && t.shoppingList)
-      if (target) {
-        get().updateTask(target.id, { checklist: [...target.checklist, item] })
+      // Goes into the event's Shopping bucket (a shopping task) — create if none.
+      const bucket = get().tasks.find((t) => t.eventKey === eventKey && t.shoppingList)
+      if (bucket) {
+        get().updateTask(bucket.id, { checklist: [...bucket.checklist, item] })
       } else {
-        get().addTask({ eventKey, title: 'Shopping', shoppingList: true, checklist: [item] }, { silent: true })
+        get().addTask(
+          { eventKey, title: 'Shopping', shopping: true, shoppingList: true, checklist: [item] },
+          { silent: true },
+        )
       }
       touchUser()
       get().showToast('Added to shopping')

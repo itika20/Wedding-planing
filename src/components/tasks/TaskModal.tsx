@@ -38,6 +38,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
   const [newItem, setNewItem] = useState('')
   const [budgeted, setBudgeted] = useState('')
   const [actual, setActual] = useState('')
+  const [shopping, setShopping] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -47,6 +48,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
     setNewItem('')
     setBudgeted(task?.budgeted ? String(task.budgeted) : '')
     setActual(task?.actual ? String(task.actual) : '')
+    setShopping(task?.shopping ?? false)
   }, [open, task])
 
   // When any subtask carries an amount, the task's expense is the SUM of its
@@ -71,6 +73,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
       checklist,
       budgeted: money(budgeted),
       actual: money(actual),
+      shopping,
     }
     if (task) {
       updateTask(task.id, payload)
@@ -154,6 +157,24 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
           />
         </div>
 
+        {/* Task-level flag: does this task's purchases show on the Shopping page? */}
+        <label className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-3 py-2.5 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={shopping}
+            onChange={(e) => setShopping(e.target.checked)}
+            className="h-4 w-4 accent-champagne"
+          />
+          <ShoppingBag size={15} className="text-champagne-deep" />
+          <span className="flex-1">
+            Shopping task
+            <span className="text-ink-faint">
+              {' — '}
+              {checklist.length > 0 ? 'its subtasks' : 'this item'} show on the Shopping page
+            </span>
+          </span>
+        </label>
+
         {/* Task-level expense (optional). Disabled when subtasks carry amounts. */}
         <div>
           <label className="label flex items-center justify-between">
@@ -215,17 +236,6 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
                         <Avatar user={by} size={18} /> {by.name}
                       </span>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => patchItem(item.id, { shopping: !item.shopping })}
-                      className={`shrink-0 rounded-md p-1 transition ${
-                        item.shopping ? 'bg-champagne/15 text-champagne-deep' : 'text-ink-faint hover:text-ink'
-                      }`}
-                      title={item.shopping ? 'A purchase — shows in Shopping. Click to unmark.' : 'Mark as a purchase (shows in Shopping)'}
-                      aria-pressed={item.shopping ?? false}
-                    >
-                      <ShoppingBag size={14} />
-                    </button>
                     <button
                       type="button"
                       onClick={() => setChecklist((c) => c.filter((x) => x.id !== item.id))}

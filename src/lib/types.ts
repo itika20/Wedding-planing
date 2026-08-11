@@ -22,10 +22,6 @@ export interface ChecklistItem {
   checkedAt?: string | null // ISO
   budgeted?: number // planned ₹ for this subtask
   actual?: number // actual ₹ spent on this subtask
-  // Shopping: a subtask flagged as a purchase shows up in the Shopping view.
-  // `done` == purchased; `budgeted` == estimated cost. Single source of truth —
-  // ticking it here or in the Shopping view is the same record.
-  shopping?: boolean
   forWhom?: string // optional shopping metadata (e.g. Bride, Decor)
   store?: string // optional shopping metadata (where to buy)
 }
@@ -46,6 +42,9 @@ export interface Task {
   // the task's expense is the sum of its subtasks (see lib/expenses.ts).
   budgeted?: number // planned ₹ for the whole task
   actual?: number // actual ₹ spent
+  // A "shopping task" — its purchases show on the Shopping page. If it has
+  // subtasks, each subtask is an item; otherwise the task itself is one item.
+  shopping?: boolean
   // Auto-created "Shopping" bucket that collects loose purchases added straight
   // from the Shopping view for this event. Removed automatically when emptied.
   shoppingList?: boolean

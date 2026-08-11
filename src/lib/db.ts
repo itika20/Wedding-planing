@@ -50,6 +50,7 @@ const rowToTask = (r: any): Task => ({
   checklist: r.checklist ?? [],
   budgeted: Number(r.budgeted) || 0,
   actual: Number(r.actual) || 0,
+  shopping: Boolean(r.shopping),
   shoppingList: Boolean(r.shopping_list),
   createdAt: r.created_at,
   updatedAt: r.updated_at,

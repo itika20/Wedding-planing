@@ -1,4 +1,4 @@
-import { Check, CheckSquare, Copy, MoreHorizontal, Trash2, Wallet } from 'lucide-react'
+import { Check, CheckSquare, Copy, MoreHorizontal, ShoppingBag, Trash2, Wallet } from 'lucide-react'
 import { forwardRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { Task } from '@/lib/types'
@@ -96,11 +96,16 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard(
 
       {task.description && <p className="mt-1.5 line-clamp-2 pl-6 text-xs text-ink-soft">{task.description}</p>}
 
-      {(showEvent || task.checklist.length > 0 || checkers.length > 0 || hasExp) && (
+      {(showEvent || task.checklist.length > 0 || checkers.length > 0 || hasExp || task.shopping) && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5 pl-6">
           {showEvent && (
             <span className="chip bg-ivory text-ink-soft">
               {event.emoji} {event.name}
+            </span>
+          )}
+          {task.shopping && (
+            <span className="chip bg-champagne/10 text-champagne-deep" title="Shows on the Shopping page">
+              <ShoppingBag size={11} /> Shopping
             </span>
           )}
           {task.checklist.length > 0 && (

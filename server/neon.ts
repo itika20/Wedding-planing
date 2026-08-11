@@ -70,13 +70,13 @@ export async function upsertTask(t: AnyTask) {
   await sql`
     insert into tasks
       (id, event_key, title, description, assigned_to, created_by, priority, status,
-       due_date, completion_pct, checklist, budgeted, actual, shopping_list,
+       due_date, completion_pct, checklist, budgeted, actual, shopping, shopping_list,
        created_at, updated_at, completed_at)
     values
       (${t.id}, ${t.eventKey}, ${t.title}, ${t.description ?? ''}, ${t.assignedTo ?? null},
        ${t.createdBy ?? null}, ${t.priority ?? 'medium'}, ${t.status ?? 'todo'},
        ${t.dueDate ?? null}, ${t.completionPct ?? 0}, ${JSON.stringify(t.checklist ?? [])}::jsonb,
-       ${t.budgeted ?? 0}, ${t.actual ?? 0}, ${t.shoppingList ?? false},
+       ${t.budgeted ?? 0}, ${t.actual ?? 0}, ${t.shopping ?? false}, ${t.shoppingList ?? false},
        ${t.createdAt}, ${t.updatedAt}, ${t.completedAt ?? null})
     on conflict (id) do update set
       event_key      = excluded.event_key,
@@ -90,6 +90,7 @@ export async function upsertTask(t: AnyTask) {
       checklist      = excluded.checklist,
       budgeted       = excluded.budgeted,
       actual         = excluded.actual,
+      shopping       = excluded.shopping,
       shopping_list  = excluded.shopping_list,
       updated_at     = excluded.updated_at,
       completed_at   = excluded.completed_at

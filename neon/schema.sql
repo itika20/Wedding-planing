@@ -27,11 +27,15 @@ create table if not exists tasks (
   checklist      jsonb default '[]'::jsonb,
   budgeted       numeric default 0,
   actual         numeric default 0,
+  shopping       boolean default false,
   shopping_list  boolean default false,
   created_at     timestamptz default now(),
   updated_at     timestamptz default now(),
   completed_at   timestamptz
 );
+
+-- Upgrading an existing project? Safe to re-run.
+alter table tasks add column if not exists shopping boolean default false;
 
 create table if not exists activity (
   id         text primary key,
