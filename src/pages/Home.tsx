@@ -136,9 +136,15 @@ export function Home() {
         <Link to="/app/tasks" className="block" title="View all tasks">
           <StatCard index={0} icon={<ListTodo size={16} />} label="Total tasks" value={<CountUp value={stats.totalTasks} />} sub={`${stats.completed} done · view all →`} accent="#8CA98C" />
         </Link>
-        <StatCard index={1} icon={<CheckCircle2 size={16} />} label="Completed" value={<CountUp value={stats.completed} />} sub={`${stats.progress}% of all tasks`} accent="#5F7A5F" />
-        <StatCard index={2} icon={<ClipboardList size={16} />} label="Pending" value={<CountUp value={stats.pending} />} sub={`${stats.dueToday} due today`} accent="#D4AF37" />
-        <StatCard index={3} icon={<AlarmClock size={16} />} label="Overdue" value={<CountUp value={stats.overdue} />} sub={stats.overdue ? 'Needs attention' : 'All on track'} accent="#D98A7B" />
+        <Link to="/app/tasks?state=completed" className="block" title="View completed tasks">
+          <StatCard index={1} icon={<CheckCircle2 size={16} />} label="Completed" value={<CountUp value={stats.completed} />} sub={`${stats.progress}% of all tasks`} accent="#5F7A5F" />
+        </Link>
+        <Link to="/app/tasks?state=pending" className="block" title="View pending tasks">
+          <StatCard index={2} icon={<ClipboardList size={16} />} label="Pending" value={<CountUp value={stats.pending} />} sub={`${stats.dueToday} due today`} accent="#D4AF37" />
+        </Link>
+        <Link to="/app/tasks?state=overdue" className="block" title="View overdue tasks">
+          <StatCard index={3} icon={<AlarmClock size={16} />} label="Overdue" value={<CountUp value={stats.overdue} />} sub={stats.overdue ? 'Needs attention' : 'All on track'} accent="#D98A7B" />
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
