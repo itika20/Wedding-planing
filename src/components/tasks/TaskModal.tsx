@@ -3,7 +3,7 @@ import { Plus, ShoppingBag, X } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import { Modal } from '@/components/ui/Modal'
 import { useStore } from '@/store/useStore'
-import { allEvents, findEvent } from '@/lib/events'
+import { allEvents } from '@/lib/events'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn, inr, nowISO } from '@/lib/utils'
 import type { ChecklistItem, EventKey, Task, TaskStatus } from '@/lib/types'
@@ -29,9 +29,8 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
 
   const allEv = allEvents(eventsMeta)
   const fallbackEvent = defaultEvent || allEv[1]?.id || 'common'
-  const targetEventId = task ? task.eventKey : fallbackEvent
-  const targetEvent = findEvent(eventsMeta, targetEventId)
 
+  const [eventKey, setEventKey] = useState<EventKey>(fallbackEvent)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [checklist, setChecklist] = useState<ChecklistItem[]>([])
@@ -42,6 +41,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
 
   useEffect(() => {
     if (!open) return
+    setEventKey(task?.eventKey ?? fallbackEvent)
     setTitle(task?.title ?? '')
     setDescription(task?.description ?? '')
     setChecklist(task?.checklist ?? [])
@@ -49,6 +49,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
     setBudgeted(task?.budgeted ? String(task.budgeted) : '')
     setActual(task?.actual ? String(task.actual) : '')
     setShopping(task?.shopping ?? false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, task])
 
   // When any subtask carries an amount, the task's expense is the SUM of its
@@ -74,11 +75,12 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
       budgeted: money(budgeted),
       actual: money(actual),
       shopping,
+      eventKey,
     }
     if (task) {
       updateTask(task.id, payload)
     } else {
-      addTask({ ...payload, eventKey: fallbackEvent, status: defaultStatus })
+      addTask({ ...payload, status: defaultStatus })
     }
     onClose()
   }
@@ -108,11 +110,6 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
       open={open}
       onClose={onClose}
       title={editing ? 'Edit task' : 'New task'}
-      subtitle={
-        <span className="inline-flex items-center gap-1">
-          in <span className="font-medium text-ink">{targetEvent.emoji} {targetEvent.name}</span>
-        </span>
-      }
       size="md"
       footer={
         <div className="flex items-center justify-between gap-2">
@@ -135,6 +132,17 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
       }
     >
       <div className="space-y-4">
+        <div>
+          <label className="label">Event</label>
+          <select className="input" value={eventKey} onChange={(e) => setEventKey(e.target.value)}>
+            {allEv.map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {ev.emoji} {ev.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div>
           <label className="label">Title</label>
           <input

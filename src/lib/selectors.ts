@@ -45,6 +45,8 @@ export function eventStats(key: EventKey, tasks: Task[]): EventStats {
 export interface OverallStats {
   totalTasks: number
   completed: number
+  todo: number
+  inProgress: number
   pending: number
   overdue: number
   dueToday: number
@@ -70,6 +72,8 @@ export function overallStats(tasks: Task[]): OverallStats {
   return {
     totalTasks: tasks.length,
     completed,
+    todo: tasks.filter((t) => t.status === 'todo').length,
+    inProgress: tasks.filter((t) => t.status === 'in_progress').length,
     pending,
     overdue,
     dueToday,

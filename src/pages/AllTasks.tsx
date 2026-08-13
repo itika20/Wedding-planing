@@ -11,27 +11,24 @@ import { Avatar } from '@/components/ui/Avatar'
 import { cn, fmtDate, inr, isOverdue } from '@/lib/utils'
 import type { Task } from '@/lib/types'
 
-type State = 'all' | 'completed' | 'pending' | 'overdue'
+type State = 'all' | 'todo' | 'in_progress' | 'completed'
 
 const STATE_TABS: { key: State; label: string }[] = [
   { key: 'all', label: 'All' },
+  { key: 'todo', label: 'To do' },
+  { key: 'in_progress', label: 'In progress' },
   { key: 'completed', label: 'Completed' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'overdue', label: 'Overdue' },
 ]
 
 const TITLES: Record<State, { h1: string; sub: string; empty: string }> = {
   all: { h1: 'All tasks', sub: 'Every task across all events, including Common Planning.', empty: 'No tasks yet' },
+  todo: { h1: 'To-do tasks', sub: 'Not started yet, by event.', empty: 'Nothing to do 🎉' },
+  in_progress: { h1: 'In-progress tasks', sub: 'Underway, by event.', empty: 'Nothing in progress' },
   completed: { h1: 'Completed tasks', sub: 'Everything that’s done, by event.', empty: 'Nothing completed yet' },
-  pending: { h1: 'Pending tasks', sub: 'Still to do, by event.', empty: 'Nothing pending 🎉' },
-  overdue: { h1: 'Overdue tasks', sub: 'Past their due date and not done, by event.', empty: 'Nothing overdue — all on track' },
 }
 
 function matchesState(t: Task, state: State): boolean {
-  if (state === 'all') return true
-  if (state === 'completed') return t.status === 'completed'
-  if (state === 'pending') return t.status === 'todo' || t.status === 'in_progress'
-  return t.status !== 'completed' && t.status !== 'cancelled' && isOverdue(t.dueDate)
+  return state === 'all' || t.status === state
 }
 
 // Reached from the Home stat cards. Filters by task state and event, and shows

@@ -1,11 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  AlarmClock,
   CalendarClock,
   CheckCircle2,
   ClipboardList,
   ListTodo,
+  Loader,
   Plus,
   ReceiptIndianRupee,
   Scale,
@@ -139,11 +139,11 @@ export function Home() {
         <Link to="/app/tasks?state=completed" className="block" title="View completed tasks">
           <StatCard index={1} icon={<CheckCircle2 size={16} />} label="Completed" value={<CountUp value={stats.completed} />} sub={`${stats.progress}% of all tasks`} accent="#5F7A5F" />
         </Link>
-        <Link to="/app/tasks?state=pending" className="block" title="View pending tasks">
-          <StatCard index={2} icon={<ClipboardList size={16} />} label="Pending" value={<CountUp value={stats.pending} />} sub={`${stats.dueToday} due today`} accent="#D4AF37" />
+        <Link to="/app/tasks?state=todo" className="block" title="View to-do tasks">
+          <StatCard index={2} icon={<ClipboardList size={16} />} label="To do" value={<CountUp value={stats.todo} />} sub={`${stats.dueToday} due today`} accent="#D4AF37" />
         </Link>
-        <Link to="/app/tasks?state=overdue" className="block" title="View overdue tasks">
-          <StatCard index={3} icon={<AlarmClock size={16} />} label="Overdue" value={<CountUp value={stats.overdue} />} sub={stats.overdue ? 'Needs attention' : 'All on track'} accent="#D98A7B" />
+        <Link to="/app/tasks?state=in_progress" className="block" title="View in-progress tasks">
+          <StatCard index={3} icon={<Loader size={16} />} label="In progress" value={<CountUp value={stats.inProgress} />} sub={stats.inProgress ? 'Underway' : 'Nothing in flight'} accent="#D98A7B" />
         </Link>
       </div>
 
