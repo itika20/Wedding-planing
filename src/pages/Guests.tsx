@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BedDouble, Check, ChevronDown, Pencil, Plus, Trash2, UserRound, Users, X } from 'lucide-react'
+import { BedDouble, Check, ChevronDown, Pencil, Plus, Search, Trash2, UserRound, Users, X } from 'lucide-react'
 import { useCollections } from '@/store/useCollections'
 import { useStore } from '@/store/useStore'
 import { findEvent } from '@/lib/events'
@@ -58,10 +58,15 @@ export function Guests() {
   const [editing, setEditing] = useState<Guest | null>(null)
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState<'all' | string>('all') // 'all' or an event id
+  const [query, setQuery] = useState('')
 
   const shown = filter === 'all' ? guests : guests.filter((g) => (g.events ?? []).includes(filter))
   const scoped = filter !== 'all'
   const activeEv = scoped ? filter : undefined
+
+  // Search narrows only the visible list, not the headline totals.
+  const q = query.trim().toLowerCase()
+  const searched = q ? shown.filter((g) => g.name.toLowerCase().includes(q)) : shown
 
   const totals = useMemo(() => {
     const invited = shown.reduce((s, g) => s + invitedFor(g, activeEv), 0)
@@ -71,11 +76,12 @@ export function Guests() {
     return { families: shown.length, invited, expected, coming, rooms }
   }, [shown, activeEv])
 
-  // Group the shown guests by category, in the fixed GUEST_CATEGORIES order,
-  // with an "Other" bucket last. Only non-empty groups are kept.
+  // Group the searched guests by category, in the fixed GUEST_CATEGORIES order,
+  // with an "Other" bucket last. Names within each group are sorted A–Z. Only
+  // non-empty groups are kept.
   const groups = useMemo(() => {
     const buckets = new Map<string, Guest[]>()
-    for (const g of shown) {
+    for (const g of searched) {
       const key = GUEST_CATEGORIES.some((c) => c.id === g.category) ? g.category! : OTHER_CATEGORY
       const list = buckets.get(key) ?? []
       list.push(g)
@@ -83,8 +89,12 @@ export function Guests() {
     }
     return [...GUEST_CATEGORIES.map((c) => c.id), OTHER_CATEGORY]
       .filter((id) => buckets.has(id))
-      .map((id) => ({ id, label: id === OTHER_CATEGORY ? 'Other' : categoryLabel(id), items: buckets.get(id)! }))
-  }, [shown])
+      .map((id) => ({
+        id,
+        label: id === OTHER_CATEGORY ? 'Other' : categoryLabel(id),
+        items: buckets.get(id)!.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
+      }))
+  }, [searched])
 
   const openNew = () => {
     setEditing(null)
@@ -180,6 +190,28 @@ export function Guests() {
         <StatCard index={4} icon={<BedDouble size={16} />} label="Rooms needed" value={totals.rooms} accent="#B87883" />
       </div>
 
+      {guests.length > 0 && (
+        <div className="relative sm:max-w-xs">
+          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
+          <input
+            className="input pl-9 pr-9"
+            placeholder="Search guests by name…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-ink-faint transition hover:bg-ink/5 hover:text-ink"
+              aria-label="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      )}
+
       {guests.length > 0 && eventList.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           <button
@@ -200,13 +232,17 @@ export function Guests() {
         </div>
       )}
 
-      {shown.length === 0 ? (
-        <EmptyState
-          emoji="👥"
-          title={scoped ? 'No guests for this function yet' : 'No guests yet'}
-          hint={scoped ? 'Add a guest and tick this function, or edit an existing guest to include it.' : 'Build your list with head-count and which functions each guest is invited to.'}
-          action={<button className="btn-gold" onClick={openNew}><Plus size={16} /> Add guest</button>}
-        />
+      {searched.length === 0 ? (
+        q ? (
+          <EmptyState emoji="🔍" title="No matches" hint={`No guests match “${query.trim()}”.`} />
+        ) : (
+          <EmptyState
+            emoji="👥"
+            title={scoped ? 'No guests for this function yet' : 'No guests yet'}
+            hint={scoped ? 'Add a guest and tick this function, or edit an existing guest to include it.' : 'Build your list with head-count and which functions each guest is invited to.'}
+            action={<button className="btn-gold" onClick={openNew}><Plus size={16} /> Add guest</button>}
+          />
+        )
       ) : (
         <div className="space-y-5">
           {groups.map((grp) => (
