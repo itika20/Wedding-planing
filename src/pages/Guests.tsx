@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BedDouble, Check, Pencil, Plus, Trash2, UserRound, Users, X } from 'lucide-react'
+import { BedDouble, Check, ChevronDown, Pencil, Plus, Trash2, UserRound, Users, X } from 'lucide-react'
 import { useCollections } from '@/store/useCollections'
 import { useStore } from '@/store/useStore'
 import { findEvent } from '@/lib/events'
@@ -348,14 +348,21 @@ function GuestModal({
 
         <div>
           <label className="label">Side / group</label>
-          <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">Uncategorized</option>
-            {GUEST_CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              className="input cursor-pointer appearance-none pr-10"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="">Uncategorized</option>
+              {GUEST_CATEGORIES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-champagne-deep" />
+          </div>
         </div>
 
         <div>
