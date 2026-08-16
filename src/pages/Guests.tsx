@@ -16,6 +16,13 @@ const RSVP_META: Record<Rsvp, { label: string; color: string; bg: string }> = {
 }
 const RSVPS: Rsvp[] = ['pending', 'yes', 'no']
 
+// Per-family head math, with sensible fallbacks for guests saved before
+// expected/coming existed: everyone invited is expected, and a "yes" RSVP
+// means the whole party is coming until the actual count is edited.
+const invitedOf = (g: Guest) => g.count || 1
+const expectedOf = (g: Guest) => g.expected ?? invitedOf(g)
+const comingOf = (g: Guest) => g.coming ?? (g.rsvp === 'yes' ? invitedOf(g) : 0)
+
 export function Guests() {
   const guests = useCollections((s) => s.guests)
   const add = useCollections((s) => s.add)
@@ -30,11 +37,11 @@ export function Guests() {
   const shown = filter === 'all' ? guests : guests.filter((g) => (g.events ?? []).includes(filter))
 
   const totals = useMemo(() => {
-    const heads = shown.reduce((s, g) => s + (g.count || 1), 0)
-    const coming = shown.filter((g) => g.rsvp === 'yes').reduce((s, g) => s + (g.count || 1), 0)
-    const pending = shown.filter((g) => g.rsvp === 'pending').length
+    const invited = shown.reduce((s, g) => s + invitedOf(g), 0)
+    const expected = shown.reduce((s, g) => s + expectedOf(g), 0)
+    const coming = shown.reduce((s, g) => s + comingOf(g), 0)
     const rooms = shown.reduce((s, g) => s + (g.rooms || 0), 0)
-    return { invites: shown.length, heads, coming, pending, rooms }
+    return { families: shown.length, invited, expected, coming, rooms }
   }, [shown])
 
   const scoped = filter !== 'all'
@@ -57,10 +64,17 @@ export function Guests() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <StatCard index={0} icon={<Users size={16} />} label={scoped ? 'Invited' : 'Invites'} value={totals.invites} accent="#D4AF37" />
-        <StatCard index={1} icon={<Users size={16} />} label="Total heads" value={totals.heads} accent="#8CA98C" />
-        <StatCard index={2} icon={<Check size={16} />} label="Coming" value={totals.coming} accent="#5F7A5F" />
-        <StatCard index={3} icon={<UserRound size={16} />} label="Awaiting RSVP" value={totals.pending} accent="#E0A458" />
+        <StatCard index={0} icon={<Users size={16} />} label="Families" value={totals.families} accent="#D4AF37" />
+        <StatCard index={1} icon={<Users size={16} />} label="Guests invited" value={totals.invited} accent="#8CA98C" />
+        <StatCard index={2} icon={<UserRound size={16} />} label="Expected" value={totals.expected} accent="#E0A458" />
+        <StatCard
+          index={3}
+          icon={<Check size={16} />}
+          label="Coming"
+          value={totals.coming}
+          sub={totals.invited - totals.coming > 0 ? `${totals.invited - totals.coming} not coming` : totals.coming > 0 ? 'Everyone invited' : undefined}
+          accent="#5F7A5F"
+        />
         <StatCard index={4} icon={<BedDouble size={16} />} label="Rooms needed" value={totals.rooms} accent="#B87883" />
       </div>
 
@@ -96,6 +110,9 @@ export function Guests() {
           <div className="divide-y divide-line">
             {shown.map((g) => {
               const evs = (g.events ?? []).map((id) => findEvent(eventList, id))
+              const inv = invitedOf(g)
+              const exp = expectedOf(g)
+              const com = comingOf(g)
               return (
                 <div key={g.id} className="group flex items-center gap-3 px-4 py-3 transition hover:bg-offwhite/40">
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-champagne/10 text-champagne-deep">
@@ -116,6 +133,13 @@ export function Guests() {
                       ) : (
                         <span className="text-xs text-ink-faint">No function set</span>
                       )}
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
+                        style={{ background: '#DDE8DD', color: '#5F7A5F' }}
+                        title={`${inv} invited · ${exp} expected · ${com} coming`}
+                      >
+                        <Users size={11} /> {com}/{inv} coming
+                      </span>
                       {g.rooms > 0 && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-rose/10 px-1.5 py-0.5 text-[11px] font-medium text-clay" title={`${g.rooms} hotel room${g.rooms === 1 ? '' : 's'}`}>
                           <BedDouble size={11} /> {g.rooms}
@@ -189,6 +213,8 @@ function GuestModal({
   const [name, setName] = useState('')
   const [invited, setInvited] = useState<string[]>([])
   const [count, setCount] = useState('1')
+  const [expected, setExpected] = useState('1')
+  const [coming, setComing] = useState('0')
   const [rooms, setRooms] = useState('0')
   const [rsvp, setRsvp] = useState<Rsvp>('pending')
   const [notes, setNotes] = useState('')
@@ -198,6 +224,8 @@ function GuestModal({
     setName(guest?.name ?? '')
     setInvited(guest?.events ?? (defaultEvent ? [defaultEvent] : []))
     setCount(String(guest?.count ?? 1))
+    setExpected(String(guest?.expected ?? guest?.count ?? 1))
+    setComing(String(guest?.coming ?? (guest?.rsvp === 'yes' ? guest?.count ?? 1 : 0)))
     setRooms(String(guest?.rooms ?? 0))
     setRsvp(guest?.rsvp ?? 'pending')
     setNotes(guest?.notes ?? '')
@@ -219,7 +247,18 @@ function GuestModal({
           <button
             className="btn-gold"
             disabled={!canSave}
-            onClick={() => onSave({ name: name.trim(), events: invited, count: Math.max(1, Number(count) || 1), rooms: Math.max(0, Number(rooms) || 0), rsvp, notes: notes.trim() })}
+            onClick={() =>
+              onSave({
+                name: name.trim(),
+                events: invited,
+                count: Math.max(1, Number(count) || 1),
+                expected: Math.max(0, Number(expected) || 0),
+                coming: Math.max(0, Number(coming) || 0),
+                rooms: Math.max(0, Number(rooms) || 0),
+                rsvp,
+                notes: notes.trim(),
+              })
+            }
           >
             {guest ? 'Save' : 'Add guest'}
           </button>
@@ -258,15 +297,30 @@ function GuestModal({
           <p className="mt-1.5 text-xs text-ink-faint">Pick every function this guest is invited to.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label">Head-count</label>
-            <input type="number" min={1} className="input" value={count} onChange={(e) => setCount(e.target.value)} />
+        <div>
+          <label className="label">Head-count</label>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-faint">Invited</span>
+              <input type="number" min={1} className="input" value={count} onChange={(e) => setCount(e.target.value)} />
+            </div>
+            <div>
+              <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-faint">Expected</span>
+              <input type="number" min={0} className="input" value={expected} onChange={(e) => setExpected(e.target.value)} />
+            </div>
+            <div>
+              <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ink-faint">Coming</span>
+              <input type="number" min={0} className="input" value={coming} onChange={(e) => setComing(e.target.value)} />
+            </div>
           </div>
-          <div>
-            <label className="label">Hotel rooms</label>
-            <input type="number" min={0} className="input" value={rooms} placeholder="0" onChange={(e) => setRooms(e.target.value)} />
-          </div>
+          <p className="mt-1.5 text-xs text-ink-faint">
+            Invited is the party size. Expected is how many you think will attend; Coming is the final confirmed count.
+          </p>
+        </div>
+
+        <div>
+          <label className="label">Hotel rooms</label>
+          <input type="number" min={0} className="input" value={rooms} placeholder="0" onChange={(e) => setRooms(e.target.value)} />
         </div>
 
         <div>
