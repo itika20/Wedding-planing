@@ -10,7 +10,6 @@ import { Home } from '@/pages/Home'
 import { AllTasks } from '@/pages/AllTasks'
 import { EventWorkspace } from '@/pages/EventWorkspace'
 import { Expenses } from '@/pages/Expenses'
-import { ActivityPage } from '@/pages/ActivityPage'
 import { Settings } from '@/pages/Settings'
 import { Vendors } from '@/pages/Vendors'
 import { Guests } from '@/pages/Guests'
@@ -84,7 +83,6 @@ export default function App() {
           <Route path="event/:key" element={<EventWorkspace />} />
           <Route path="expenses" element={<Expenses />} />
           <Route path="budget" element={<Navigate to="/app/expenses" replace />} />
-          <Route path="activity" element={<ActivityPage />} />
           <Route path="settings" element={<Settings />} />
           <Route path="vendors" element={<Vendors />} />
           <Route path="guests" element={<Guests />} />

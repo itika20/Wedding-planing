@@ -20,7 +20,6 @@ import type { EventMeta } from '@/lib/types'
 import { CountUp } from '@/components/ui/CountUp'
 import { ProgressRing } from '@/components/ui/ProgressRing'
 import { StatCard } from '@/components/ui/StatCard'
-import { ActivityFeed } from '@/components/activity/ActivityFeed'
 import { Avatar } from '@/components/ui/Avatar'
 import { daysUntil, fmtDateShort, inr, isDueToday, isOverdue } from '@/lib/utils'
 
@@ -256,15 +255,8 @@ export function Home() {
           </div>
         </div>
 
-        {/* Activity + recently done */}
+        {/* Recently done */}
         <div className="space-y-4">
-          <div className="card p-5">
-            <h3 className="mb-4 font-display text-lg font-semibold text-ink">Recent activity</h3>
-            <ActivityFeed limit={5} />
-            <Link to="/app/activity" className="mt-2 block text-sm font-medium text-champagne-deep hover:underline">
-              View all →
-            </Link>
-          </div>
           {recentlyDone.length > 0 && (
             <div className="card p-5">
               <h3 className="mb-3 font-display text-lg font-semibold text-ink">Recently completed</h3>

@@ -6,7 +6,6 @@ import {
   Home as HomeIcon,
   ReceiptIndianRupee,
   ShoppingBag,
-  Sparkles,
   Store,
   Users,
 } from 'lucide-react'
@@ -21,7 +20,6 @@ const primary = [
 
 const secondary = [
   { to: '/app/expenses', label: 'Expenses', icon: ReceiptIndianRupee },
-  { to: '/app/activity', label: 'Activity', icon: Sparkles },
   { to: '/app/vendors', label: 'Vendors', icon: Store },
   { to: '/app/guests', label: 'Guests', icon: Users },
   { to: '/app/shopping', label: 'Shopping', icon: ShoppingBag },
