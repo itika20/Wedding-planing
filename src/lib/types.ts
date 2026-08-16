@@ -100,13 +100,21 @@ export interface Vendor {
 }
 
 export type Rsvp = 'pending' | 'yes' | 'no'
+export interface GuestEventCount {
+  invited?: number
+  expected?: number
+  coming?: number
+}
 export interface Guest {
   id: string
   name: string
   events: EventKey[] // which functions they're invited to
   count: number // guests invited — party size (incl. plus-ones)
-  expected?: number // how many we expect to attend
-  coming?: number // how many are actually coming (final confirmed count)
+  expected?: number // how many we expect to attend (overall)
+  coming?: number // how many are actually coming — final confirmed count (overall)
+  // Optional per-function overrides. Any field left out inherits the overall
+  // number above; used when a family's turnout differs by function.
+  perEvent?: Record<string, GuestEventCount>
   rooms: number // hotel rooms this family needs
   rsvp: Rsvp
   notes: string

@@ -7,7 +7,10 @@ import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { StatCard } from '@/components/ui/StatCard'
 import { EmptyState } from '@/components/ui/EmptyState'
-import type { EventMeta, Guest, Rsvp } from '@/lib/types'
+import type { EventMeta, Guest, GuestEventCount, Rsvp } from '@/lib/types'
+
+type OverrideRow = { invited: string; expected: string; coming: string }
+const blankRow = (): OverrideRow => ({ invited: '', expected: '', coming: '' })
 
 const RSVP_META: Record<Rsvp, { label: string; color: string; bg: string }> = {
   pending: { label: 'Pending', color: '#6B6259', bg: '#F1EAE3' },
@@ -16,12 +19,21 @@ const RSVP_META: Record<Rsvp, { label: string; color: string; bg: string }> = {
 }
 const RSVPS: Rsvp[] = ['pending', 'yes', 'no']
 
-// Per-family head math, with sensible fallbacks for guests saved before
-// expected/coming existed: everyone invited is expected, and a "yes" RSVP
-// means the whole party is coming until the actual count is edited.
-const invitedOf = (g: Guest) => g.count || 1
-const expectedOf = (g: Guest) => g.expected ?? invitedOf(g)
-const comingOf = (g: Guest) => g.coming ?? (g.rsvp === 'yes' ? invitedOf(g) : 0)
+// Overall (whole-wedding) head math, with sensible fallbacks for guests saved
+// before expected/coming existed: everyone invited is expected, and a "yes"
+// RSVP means the whole party is coming until the actual count is edited.
+const overallInvited = (g: Guest) => g.count || 1
+const overallExpected = (g: Guest) => g.expected ?? overallInvited(g)
+const overallComing = (g: Guest) => g.coming ?? (g.rsvp === 'yes' ? overallInvited(g) : 0)
+
+// Head math for a given view: a specific function (using its per-event override
+// when set) or the family's overall figure when viewing all guests.
+const invitedFor = (g: Guest, ev?: string) =>
+  ev && g.perEvent?.[ev]?.invited != null ? g.perEvent[ev]!.invited! : overallInvited(g)
+const expectedFor = (g: Guest, ev?: string) =>
+  ev && g.perEvent?.[ev]?.expected != null ? g.perEvent[ev]!.expected! : overallExpected(g)
+const comingFor = (g: Guest, ev?: string) =>
+  ev && g.perEvent?.[ev]?.coming != null ? g.perEvent[ev]!.coming! : overallComing(g)
 
 export function Guests() {
   const guests = useCollections((s) => s.guests)
@@ -35,16 +47,16 @@ export function Guests() {
   const [filter, setFilter] = useState<'all' | string>('all') // 'all' or an event id
 
   const shown = filter === 'all' ? guests : guests.filter((g) => (g.events ?? []).includes(filter))
+  const scoped = filter !== 'all'
+  const activeEv = scoped ? filter : undefined
 
   const totals = useMemo(() => {
-    const invited = shown.reduce((s, g) => s + invitedOf(g), 0)
-    const expected = shown.reduce((s, g) => s + expectedOf(g), 0)
-    const coming = shown.reduce((s, g) => s + comingOf(g), 0)
+    const invited = shown.reduce((s, g) => s + invitedFor(g, activeEv), 0)
+    const expected = shown.reduce((s, g) => s + expectedFor(g, activeEv), 0)
+    const coming = shown.reduce((s, g) => s + comingFor(g, activeEv), 0)
     const rooms = shown.reduce((s, g) => s + (g.rooms || 0), 0)
     return { families: shown.length, invited, expected, coming, rooms }
-  }, [shown])
-
-  const scoped = filter !== 'all'
+  }, [shown, activeEv])
 
   const openNew = () => {
     setEditing(null)
@@ -67,14 +79,7 @@ export function Guests() {
         <StatCard index={0} icon={<Users size={16} />} label="Families" value={totals.families} accent="#D4AF37" />
         <StatCard index={1} icon={<Users size={16} />} label="Guests invited" value={totals.invited} accent="#8CA98C" />
         <StatCard index={2} icon={<UserRound size={16} />} label="Expected" value={totals.expected} accent="#E0A458" />
-        <StatCard
-          index={3}
-          icon={<Check size={16} />}
-          label="Coming"
-          value={totals.coming}
-          sub={totals.invited - totals.coming > 0 ? `${totals.invited - totals.coming} not coming` : totals.coming > 0 ? 'Everyone invited' : undefined}
-          accent="#5F7A5F"
-        />
+        <StatCard index={3} icon={<Check size={16} />} label="Coming" value={totals.coming} accent="#5F7A5F" />
         <StatCard index={4} icon={<BedDouble size={16} />} label="Rooms needed" value={totals.rooms} accent="#B87883" />
       </div>
 
@@ -110,9 +115,10 @@ export function Guests() {
           <div className="divide-y divide-line">
             {shown.map((g) => {
               const evs = (g.events ?? []).map((id) => findEvent(eventList, id))
-              const inv = invitedOf(g)
-              const exp = expectedOf(g)
-              const com = comingOf(g)
+              const inv = invitedFor(g, activeEv)
+              const exp = expectedFor(g, activeEv)
+              const com = comingFor(g, activeEv)
+              const hasOverrides = Object.keys(g.perEvent ?? {}).length > 0
               return (
                 <div key={g.id} className="group flex items-center gap-3 px-4 py-3 transition hover:bg-offwhite/40">
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-champagne/10 text-champagne-deep">
@@ -136,9 +142,9 @@ export function Guests() {
                       <span
                         className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-medium"
                         style={{ background: '#DDE8DD', color: '#5F7A5F' }}
-                        title={`${inv} invited · ${exp} expected · ${com} coming`}
+                        title={`${inv} invited · ${exp} expected · ${com} coming${!scoped && hasOverrides ? ' — varies by function' : ''}`}
                       >
-                        <Users size={11} /> {com}/{inv} coming
+                        <Users size={11} /> {com}/{inv} coming{!scoped && hasOverrides ? '*' : ''}
                       </span>
                       {g.rooms > 0 && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-rose/10 px-1.5 py-0.5 text-[11px] font-medium text-clay" title={`${g.rooms} hotel room${g.rooms === 1 ? '' : 's'}`}>
@@ -218,6 +224,8 @@ function GuestModal({
   const [rooms, setRooms] = useState('0')
   const [rsvp, setRsvp] = useState<Rsvp>('pending')
   const [notes, setNotes] = useState('')
+  const [perEvent, setPerEvent] = useState<Record<string, OverrideRow>>({})
+  const [showOverrides, setShowOverrides] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -229,12 +237,53 @@ function GuestModal({
     setRooms(String(guest?.rooms ?? 0))
     setRsvp(guest?.rsvp ?? 'pending')
     setNotes(guest?.notes ?? '')
+    const pe: Record<string, OverrideRow> = {}
+    for (const [id, v] of Object.entries(guest?.perEvent ?? {})) {
+      pe[id] = {
+        invited: v.invited != null ? String(v.invited) : '',
+        expected: v.expected != null ? String(v.expected) : '',
+        coming: v.coming != null ? String(v.coming) : '',
+      }
+    }
+    setPerEvent(pe)
+    setShowOverrides(Object.keys(pe).length > 0)
   }, [open, guest, defaultEvent])
 
   const toggleEvent = (id: string) =>
     setInvited((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
 
+  const setPE = (id: string, field: keyof OverrideRow, val: string) =>
+    setPerEvent((cur) => ({ ...cur, [id]: { ...blankRow(), ...cur[id], [field]: val } }))
+
   const canSave = name.trim().length > 0
+
+  const handleSave = () => {
+    // Only multi-function guests carry per-event overrides; a single function
+    // is fully described by the overall numbers.
+    const pe: Record<string, GuestEventCount> = {}
+    if (invited.length >= 2) {
+      for (const id of invited) {
+        const row = perEvent[id]
+        if (!row) continue
+        const o: GuestEventCount = {}
+        if (row.invited.trim() !== '') o.invited = Math.max(0, Number(row.invited) || 0)
+        if (row.expected.trim() !== '') o.expected = Math.max(0, Number(row.expected) || 0)
+        if (row.coming.trim() !== '') o.coming = Math.max(0, Number(row.coming) || 0)
+        if (Object.keys(o).length) pe[id] = o
+      }
+    }
+    onSave({
+      name: name.trim(),
+      events: invited,
+      count: Math.max(1, Number(count) || 1),
+      expected: Math.max(0, Number(expected) || 0),
+      coming: Math.max(0, Number(coming) || 0),
+      perEvent: Object.keys(pe).length ? pe : undefined,
+      rooms: Math.max(0, Number(rooms) || 0),
+      rsvp,
+      notes: notes.trim(),
+    })
+  }
 
   return (
     <Modal
@@ -244,22 +293,7 @@ function GuestModal({
       footer={
         <div className="flex justify-end gap-2">
           <button className="btn-ghost" onClick={onClose}>Cancel</button>
-          <button
-            className="btn-gold"
-            disabled={!canSave}
-            onClick={() =>
-              onSave({
-                name: name.trim(),
-                events: invited,
-                count: Math.max(1, Number(count) || 1),
-                expected: Math.max(0, Number(expected) || 0),
-                coming: Math.max(0, Number(coming) || 0),
-                rooms: Math.max(0, Number(rooms) || 0),
-                rsvp,
-                notes: notes.trim(),
-              })
-            }
-          >
+          <button className="btn-gold" disabled={!canSave} onClick={handleSave}>
             {guest ? 'Save' : 'Add guest'}
           </button>
         </div>
@@ -315,8 +349,54 @@ function GuestModal({
           </div>
           <p className="mt-1.5 text-xs text-ink-faint">
             Invited is the party size. Expected is how many you think will attend; Coming is the final confirmed count.
+            {invited.length >= 2 && ' These apply across every function unless you set different numbers below.'}
           </p>
         </div>
+
+        {invited.length >= 2 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowOverrides((v) => !v)}
+              className="text-xs font-semibold text-champagne-deep hover:underline"
+            >
+              {showOverrides ? '– Hide per-function numbers' : '+ Different numbers for a function?'}
+            </button>
+
+            {showOverrides && (
+              <div className="mt-2 space-y-2 rounded-xl border border-line bg-offwhite/40 p-3">
+                <p className="text-[11px] text-ink-faint">
+                  Leave a box blank to use the overall number above — only fill where a function differs.
+                </p>
+                <div className="grid grid-cols-[minmax(0,1fr)_2.4fr] items-center gap-2">
+                  <span />
+                  <div className="grid grid-cols-3 gap-2 text-[10px] font-medium uppercase tracking-wide text-ink-faint">
+                    <span>Invited</span>
+                    <span>Expected</span>
+                    <span>Coming</span>
+                  </div>
+                </div>
+                {invited.map((id) => {
+                  const ev = events.find((e) => e.id === id)
+                  if (!ev) return null
+                  const row = perEvent[id] ?? blankRow()
+                  return (
+                    <div key={id} className="grid grid-cols-[minmax(0,1fr)_2.4fr] items-center gap-2">
+                      <span className="truncate text-xs text-ink-soft" title={ev.name}>
+                        {ev.emoji} {ev.name}
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <input type="number" min={0} className="input !py-1.5 text-sm" placeholder={count || '0'} value={row.invited} onChange={(e) => setPE(id, 'invited', e.target.value)} />
+                        <input type="number" min={0} className="input !py-1.5 text-sm" placeholder={expected || '0'} value={row.expected} onChange={(e) => setPE(id, 'expected', e.target.value)} />
+                        <input type="number" min={0} className="input !py-1.5 text-sm" placeholder={coming || '0'} value={row.coming} onChange={(e) => setPE(id, 'coming', e.target.value)} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <div>
           <label className="label">Hotel rooms</label>
