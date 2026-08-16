@@ -115,6 +115,7 @@ export interface Guest {
   // Optional per-function overrides. Any field left out inherits the overall
   // number above; used when a family's turnout differs by function.
   perEvent?: Record<string, GuestEventCount>
+  category?: string // which side / group they belong to (see GUEST_CATEGORIES)
   rooms: number // hotel rooms this family needs
   rsvp: Rsvp
   notes: string
