@@ -279,6 +279,13 @@ export const useStore = create<StoreState>((set, get) => {
           if (patch.status === 'completed' && t.status !== 'completed') {
             next.completedAt = nowISO()
             next.completionPct = 100
+            // Completing a shopping task checks off all its purchases, so the
+            // Shopping page shows the associated subtasks as done.
+            if (next.shopping && next.checklist?.length) {
+              const uid = get().currentUserId ?? null
+              const ts = nowISO()
+              next.checklist = next.checklist.map((c) => (c.done ? c : { ...c, done: true, checkedBy: uid, checkedAt: ts }))
+            }
           }
           if (patch.status && patch.status !== 'completed') next.completedAt = null
           updated = next
