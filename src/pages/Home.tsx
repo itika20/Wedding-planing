@@ -12,6 +12,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useStore, useCurrentUser } from '@/store/useStore'
+import { useCollections } from '@/store/useCollections'
 import { useUI } from '@/components/layout/UIProvider'
 import { overallStats, eventStats } from '@/lib/selectors'
 import { varianceView } from '@/lib/expenses'
@@ -25,6 +26,7 @@ import { daysUntil, fmtDateShort, inr, isDueToday, isOverdue } from '@/lib/utils
 
 export function Home() {
   const tasks = useStore((s) => s.tasks)
+  const vendors = useCollections((s) => s.vendors)
   const users = useStore((s) => s.users)
   const user = useCurrentUser()
   const navigate = useNavigate()
@@ -33,7 +35,7 @@ export function Home() {
   const settings = useStore((s) => s.settings)
   const { weddingDate, events } = settings
 
-  const stats = overallStats(tasks)
+  const stats = overallStats(tasks, vendors)
   const vv = varianceView(stats.budgeted, stats.actual)
   const days = weddingDate ? daysUntil(weddingDate) : 0
   const eventList = events
@@ -44,7 +46,7 @@ export function Home() {
   for (let i = 0; i < eventList.length; i += perRow) eventRows.push(eventList.slice(i, i + perRow))
 
   const renderEventCard = (e: EventMeta) => {
-    const st = eventStats(e.id, tasks)
+    const st = eventStats(e.id, tasks, vendors)
     const d = e.date
     const hasMoney = st.budgeted > 0 || st.actual > 0
     return (

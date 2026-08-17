@@ -94,6 +94,8 @@ export interface Vendor {
   phone: string
   eventKey: EventKey | '' // optional link to an event ('' = general)
   status: VendorStatus
+  budgeted?: number // quoted / agreed cost — rolls into Expenses
+  actual?: number // amount actually paid — rolls into Expenses
   notes: string
   createdAt: string
 }

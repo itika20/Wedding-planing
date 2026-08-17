@@ -5,6 +5,7 @@ import { CalendarDays, LayoutGrid, ReceiptIndianRupee, StickyNote, Wallet } from
 import { findEvent } from '@/lib/events'
 import type { EventKey } from '@/lib/types'
 import { useStore } from '@/store/useStore'
+import { useCollections } from '@/store/useCollections'
 import { useUI } from '@/components/layout/UIProvider'
 import { eventStats } from '@/lib/selectors'
 import { varianceView } from '@/lib/expenses'
@@ -27,6 +28,7 @@ const TABS: { key: Tab; label: string; icon: typeof LayoutGrid }[] = [
 export function EventWorkspace() {
   const { key } = useParams<{ key: string }>()
   const tasks = useStore((s) => s.tasks)
+  const vendors = useCollections((s) => s.vendors)
   const settings = useStore((s) => s.settings)
   const [tab, setTab] = useState<Tab>('overview')
   const [fireConfetti, setFireConfetti] = useState(false)
@@ -35,8 +37,8 @@ export function EventWorkspace() {
   const eventKey = key as EventKey
   const isValid = settings.events.some((e) => e.id === eventKey)
   const st = useMemo(
-    () => (isValid ? eventStats(eventKey, tasks) : null),
-    [eventKey, isValid, tasks],
+    () => (isValid ? eventStats(eventKey, tasks, vendors) : null),
+    [eventKey, isValid, tasks, vendors],
   )
 
   useEffect(() => {
@@ -149,9 +151,10 @@ function MiniStat({ label, value, accent }: { label: string; value: string; acce
 
 function Overview({ eventKey }: { eventKey: EventKey }) {
   const tasks = useStore((s) => s.tasks)
+  const vendors = useCollections((s) => s.vendors)
   const users = useStore((s) => s.users)
   const { openTask } = useUI()
-  const st = eventStats(eventKey, tasks)
+  const st = eventStats(eventKey, tasks, vendors)
   const vv = varianceView(st.budgeted, st.actual)
   const usedPct = st.budgeted > 0 ? Math.round((st.actual / st.budgeted) * 100) : 0
 
@@ -279,7 +282,8 @@ function SmallCard({ label, value, tone }: { label: string; value: number; tone:
 
 function ExpensesTab({ eventKey }: { eventKey: EventKey }) {
   const tasks = useStore((s) => s.tasks)
-  const st = eventStats(eventKey, tasks)
+  const vendors = useCollections((s) => s.vendors)
+  const st = eventStats(eventKey, tasks, vendors)
   const vv = varianceView(st.budgeted, st.actual)
   return (
     <div className="space-y-4">

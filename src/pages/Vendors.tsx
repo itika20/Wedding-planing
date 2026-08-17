@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Pencil, Phone, Plus, Store, Trash2 } from 'lucide-react'
+import { Pencil, Phone, Plus, Store, Trash2, Wallet } from 'lucide-react'
 import { useCollections } from '@/store/useCollections'
 import { useStore } from '@/store/useStore'
 import { allEvents, findEvent } from '@/lib/events'
+import { sumVendorExpenses } from '@/lib/expenses'
+import { inr } from '@/lib/utils'
 import type { EventMeta } from '@/lib/types'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
@@ -29,6 +31,7 @@ export function Vendors() {
   const [open, setOpen] = useState(false)
 
   const booked = vendors.filter((v) => v.status === 'booked' || v.status === 'completed').length
+  const cost = sumVendorExpenses(vendors)
 
   const openNew = () => {
     setEditing(null)
@@ -47,10 +50,11 @@ export function Vendors() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard index={0} icon={<Store size={16} />} label="Vendors" value={vendors.length} accent="#D4AF37" />
         <StatCard index={1} icon={<Store size={16} />} label="Booked" value={booked} accent="#5F7A5F" />
         <StatCard index={2} icon={<Store size={16} />} label="Pending" value={vendors.length - booked} accent="#B8912A" />
+        <StatCard index={3} icon={<Wallet size={16} />} label="Vendor cost" value={inr(cost.budgeted, { compact: true })} sub={`${inr(cost.actual, { compact: true })} paid`} accent="#8CA98C" />
       </div>
 
       {vendors.length === 0 ? (
@@ -84,6 +88,14 @@ export function Vendors() {
                   </p>
                   {v.notes && <p className="mt-0.5 truncate text-xs text-ink-soft">{v.notes}</p>}
                 </div>
+                {((v.budgeted ?? 0) > 0 || (v.actual ?? 0) > 0) && (
+                  <div className="hidden text-right leading-tight sm:block">
+                    {(v.actual ?? 0) > 0 && <p className="text-sm font-semibold tabular-nums text-ink">{inr(v.actual!)}</p>}
+                    {(v.budgeted ?? 0) > 0 && (
+                      <p className="text-xs tabular-nums text-ink-faint">{(v.actual ?? 0) > 0 ? `of ${inr(v.budgeted!)}` : inr(v.budgeted!)}</p>
+                    )}
+                  </div>
+                )}
                 <Badge color={STATUS[v.status].color} bg={STATUS[v.status].bg} dot>
                   {STATUS[v.status].label}
                 </Badge>
@@ -134,6 +146,8 @@ function VendorModal({
   const [phone, setPhone] = useState('')
   const [eventKey, setEventKey] = useState('')
   const [status, setStatus] = useState<VendorStatus>('pending')
+  const [budgeted, setBudgeted] = useState('')
+  const [actual, setActual] = useState('')
   const [notes, setNotes] = useState('')
 
   useEffect(() => {
@@ -143,9 +157,12 @@ function VendorModal({
     setPhone(vendor?.phone ?? '')
     setEventKey(vendor?.eventKey ?? '')
     setStatus(vendor?.status ?? 'pending')
+    setBudgeted(vendor?.budgeted ? String(vendor.budgeted) : '')
+    setActual(vendor?.actual ? String(vendor.actual) : '')
     setNotes(vendor?.notes ?? '')
   }, [open, vendor])
 
+  const money = (v: string) => Math.max(0, Math.round(Number(v) || 0))
   const canSave = name.trim().length > 0
 
   return (
@@ -159,7 +176,18 @@ function VendorModal({
           <button
             className="btn-gold"
             disabled={!canSave}
-            onClick={() => onSave({ name: name.trim(), category, phone: phone.trim(), eventKey, status, notes: notes.trim() })}
+            onClick={() =>
+              onSave({
+                name: name.trim(),
+                category,
+                phone: phone.trim(),
+                eventKey,
+                status,
+                budgeted: money(budgeted),
+                actual: money(actual),
+                notes: notes.trim(),
+              })
+            }
           >
             {vendor ? 'Save' : 'Add vendor'}
           </button>
@@ -199,6 +227,17 @@ function VendorModal({
             </select>
           </div>
         </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Cost (₹)</label>
+            <input type="number" min={0} className="input" value={budgeted} placeholder="Quoted / agreed" onChange={(e) => setBudgeted(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Paid (₹)</label>
+            <input type="number" min={0} className="input" value={actual} placeholder="Paid so far" onChange={(e) => setActual(e.target.value)} />
+          </div>
+        </div>
+        <p className="-mt-1 text-xs text-ink-faint">Cost and paid amounts roll up into the Expenses page.</p>
         <div>
           <label className="label">Notes</label>
           <textarea className="input min-h-[60px] resize-none" value={notes} placeholder="Quote, advance paid, contact person…" onChange={(e) => setNotes(e.target.value)} />

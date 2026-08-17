@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
-import { ReceiptIndianRupee, Scale, Wallet } from 'lucide-react'
+import { ReceiptIndianRupee, Scale, Store, Wallet } from 'lucide-react'
 import { useStore } from '@/store/useStore'
-import { allEvents } from '@/lib/events'
+import { useCollections } from '@/store/useCollections'
+import { allEvents, findEvent } from '@/lib/events'
 import { eventStats, overallStats } from '@/lib/selectors'
 import { varianceView } from '@/lib/expenses'
 import { TaskExpenseList } from '@/components/expenses/TaskExpenseList'
@@ -13,16 +14,24 @@ import { inr } from '@/lib/utils'
 
 export function Expenses() {
   const tasks = useStore((s) => s.tasks)
-  const events = allEvents(useStore((s) => s.settings.events))
-  const stats = overallStats(tasks)
+  const eventList = useStore((s) => s.settings.events)
+  const events = allEvents(eventList)
+  const vendors = useCollections((s) => s.vendors)
+  const stats = overallStats(tasks, vendors)
   const vv = varianceView(stats.budgeted, stats.actual)
+
+  // Vendors carrying a cost, biggest first — shown as their own expense list.
+  const vendorRows = vendors
+    .filter((v) => (v.budgeted ?? 0) > 0 || (v.actual ?? 0) > 0)
+    .sort((a, b) => Math.max(b.actual ?? 0, b.budgeted ?? 0) - Math.max(a.actual ?? 0, a.budgeted ?? 0))
 
   // Per-event budgeted/actual, biggest first (only events that have spend).
   const byEvent = events
-    .map((e) => ({ event: e, st: eventStats(e.id, tasks) }))
+    .map((e) => ({ event: e, st: eventStats(e.id, tasks, vendors) }))
     .filter((x) => x.st.budgeted > 0 || x.st.actual > 0)
     .sort((a, b) => Math.max(b.st.actual, b.st.budgeted) - Math.max(a.st.actual, a.st.budgeted))
   const maxTotal = byEvent.reduce((m, x) => Math.max(m, x.st.actual, x.st.budgeted), 0)
+  const hasExpenses = stats.expenseTaskCount > 0 || stats.vendorCount > 0
 
   return (
     <div className="space-y-6">
@@ -34,17 +43,17 @@ export function Expenses() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard index={0} icon={<ReceiptIndianRupee size={16} />} label="Budgeted" value={<CountUp value={stats.budgeted} format={(n) => inr(n, { compact: true })} />} sub={`${stats.expenseTaskCount} task${stats.expenseTaskCount === 1 ? '' : 's'} with a cost`} accent="#D4AF37" />
+        <StatCard index={0} icon={<ReceiptIndianRupee size={16} />} label="Budgeted" value={<CountUp value={stats.budgeted} format={(n) => inr(n, { compact: true })} />} sub={[stats.expenseTaskCount ? `${stats.expenseTaskCount} task${stats.expenseTaskCount === 1 ? '' : 's'}` : null, stats.vendorCount ? `${stats.vendorCount} vendor${stats.vendorCount === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ') || 'nothing yet'} accent="#D4AF37" />
         <StatCard index={1} icon={<Wallet size={16} />} label="Actual spent" value={<CountUp value={stats.actual} format={(n) => inr(n, { compact: true })} />} sub="Logged so far" accent="#5F7A5F" />
         <StatCard index={2} icon={<Scale size={16} />} label={vv.label} value={<CountUp value={vv.amount} format={(n) => inr(n, { compact: true })} />} sub={vv.hint} accent={vv.over ? '#B87883' : '#5F7A5F'} />
         <StatCard index={3} icon={<ReceiptIndianRupee size={16} />} label="Events with spend" value={<CountUp value={byEvent.length} />} sub={`of ${events.length}`} accent="#8CA98C" />
       </div>
 
-      {stats.expenseTaskCount === 0 ? (
+      {!hasExpenses ? (
         <EmptyState
           emoji="💸"
           title="No expenses yet"
-          hint="Open any task and add a budget or actual amount — on the task itself, or itemised across its subtasks. Totals roll up here across every event."
+          hint="Add a budget or actual amount to any task — or a cost to any vendor. Totals roll up here across every event."
         />
       ) : (
         <>
@@ -74,6 +83,38 @@ export function Expenses() {
             <h3 className="mb-3 font-display text-lg font-semibold text-ink">All task expenses</h3>
             <TaskExpenseList showEvent />
           </div>
+
+          {vendorRows.length > 0 && (
+            <div>
+              <h3 className="mb-3 font-display text-lg font-semibold text-ink">Vendor costs</h3>
+              <div className="overflow-hidden rounded-2xl border border-line bg-white">
+                <div className="divide-y divide-line">
+                  {vendorRows.map((v) => {
+                    const paid = v.actual ?? 0
+                    const est = v.budgeted ?? 0
+                    return (
+                      <div key={v.id} className="flex items-center gap-3 px-4 py-3">
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-champagne/10 text-champagne-deep">
+                          <Store size={15} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-ink">{v.name}</p>
+                          <p className="truncate text-xs text-ink-faint">
+                            {v.category || 'Vendor'}
+                            {v.eventKey ? ` · ${findEvent(eventList, v.eventKey).emoji} ${findEvent(eventList, v.eventKey).name}` : ' · General'}
+                          </p>
+                        </div>
+                        <div className="text-right leading-tight">
+                          {paid > 0 && <p className="text-sm font-semibold tabular-nums text-ink">{inr(paid)}</p>}
+                          {est > 0 && <p className="text-xs tabular-nums text-ink-faint">{paid > 0 ? `of ${inr(est)}` : inr(est)}</p>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

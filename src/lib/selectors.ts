@@ -1,6 +1,6 @@
-import type { EventKey, Task } from './types'
+import type { EventKey, Task, Vendor } from './types'
 import { isOverdue, isDueToday, pct } from './utils'
-import { sumExpenses } from './expenses'
+import { sumExpenses, sumVendorExpenses } from './expenses'
 
 export interface EventStats {
   key: EventKey
@@ -11,14 +11,18 @@ export interface EventStats {
   cancelled: number
   overdue: number
   taskProgress: number // % completed of non-cancelled
-  budgeted: number // sum of budgeted amounts across this event's tasks
-  actual: number // sum of actual amounts
+  budgeted: number // budgeted across this event's tasks + vendors
+  actual: number // actual spend across this event's tasks + vendors
   variance: number // actual − budgeted
   expenseTaskCount: number // tasks with any expense
+  vendorCount: number // vendors (in this event) carrying a cost
 }
 
-export function eventStats(key: EventKey, tasks: Task[]): EventStats {
+// Vendor money is folded into the budgeted/actual figures. Vendors tied to no
+// event ('') only surface in overallStats, never in a per-event roll-up.
+export function eventStats(key: EventKey, tasks: Task[], vendors: Vendor[] = []): EventStats {
   const t = tasks.filter((x) => x.eventKey === key)
+  const v = vendors.filter((x) => x.eventKey === key)
   const completed = t.filter((x) => x.status === 'completed').length
   const cancelled = t.filter((x) => x.status === 'cancelled').length
   const inProgress = t.filter((x) => x.status === 'in_progress').length
@@ -26,6 +30,9 @@ export function eventStats(key: EventKey, tasks: Task[]): EventStats {
   const pending = t.filter((x) => x.status === 'todo' || x.status === 'in_progress').length
   const overdue = t.filter((x) => x.status !== 'completed' && x.status !== 'cancelled' && isOverdue(x.dueDate)).length
   const money = sumExpenses(t)
+  const vend = sumVendorExpenses(v)
+  const budgeted = money.budgeted + vend.budgeted
+  const actual = money.actual + vend.actual
   return {
     key,
     totalTasks: t.length,
@@ -35,10 +42,11 @@ export function eventStats(key: EventKey, tasks: Task[]): EventStats {
     cancelled,
     overdue,
     taskProgress: pct(completed, active),
-    budgeted: money.budgeted,
-    actual: money.actual,
-    variance: money.variance,
+    budgeted,
+    actual,
+    variance: actual - budgeted,
     expenseTaskCount: money.taskCount,
+    vendorCount: vend.taskCount,
   }
 }
 
@@ -51,13 +59,14 @@ export interface OverallStats {
   overdue: number
   dueToday: number
   progress: number
-  budgeted: number // planned spend across every event
-  actual: number // actual spend across every event
+  budgeted: number // planned spend across every event (tasks + vendors)
+  actual: number // actual spend across every event (tasks + vendors)
   variance: number // actual − budgeted
   expenseTaskCount: number // tasks carrying an expense
+  vendorCount: number // vendors carrying a cost
 }
 
-export function overallStats(tasks: Task[]): OverallStats {
+export function overallStats(tasks: Task[], vendors: Vendor[] = []): OverallStats {
   const cancelled = tasks.filter((t) => t.status === 'cancelled').length
   const completed = tasks.filter((t) => t.status === 'completed').length
   const active = tasks.length - cancelled
@@ -69,6 +78,9 @@ export function overallStats(tasks: Task[]): OverallStats {
     (t) => t.status !== 'completed' && t.status !== 'cancelled' && isDueToday(t.dueDate),
   ).length
   const money = sumExpenses(tasks)
+  const vend = sumVendorExpenses(vendors)
+  const budgeted = money.budgeted + vend.budgeted
+  const actual = money.actual + vend.actual
   return {
     totalTasks: tasks.length,
     completed,
@@ -78,9 +90,10 @@ export function overallStats(tasks: Task[]): OverallStats {
     overdue,
     dueToday,
     progress: pct(completed, active),
-    budgeted: money.budgeted,
-    actual: money.actual,
-    variance: money.variance,
+    budgeted,
+    actual,
+    variance: actual - budgeted,
     expenseTaskCount: money.taskCount,
+    vendorCount: vend.taskCount,
   }
 }

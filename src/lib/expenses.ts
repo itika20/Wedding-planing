@@ -1,4 +1,4 @@
-import type { Task } from './types'
+import type { Task, Vendor } from './types'
 
 const num = (n?: number | null) => (typeof n === 'number' && isFinite(n) && n > 0 ? n : 0)
 
@@ -68,4 +68,23 @@ export function sumExpenses(tasks: Task[]): ExpenseTotals {
     actual += e.actual
   }
   return { budgeted, actual, variance: actual - budgeted, taskCount }
+}
+
+// A single vendor's expense: its quoted cost (budgeted) and amount paid (actual).
+export function vendorExpense(v: Vendor): { budgeted: number; actual: number } {
+  return { budgeted: num(v.budgeted), actual: num(v.actual) }
+}
+
+// Vendor costs rolled up. `taskCount` here is the number of vendors carrying a cost.
+export function sumVendorExpenses(vendors: Vendor[]): ExpenseTotals {
+  let budgeted = 0
+  let actual = 0
+  let count = 0
+  for (const v of vendors) {
+    const e = vendorExpense(v)
+    if (e.budgeted > 0 || e.actual > 0) count++
+    budgeted += e.budgeted
+    actual += e.actual
+  }
+  return { budgeted, actual, variance: actual - budgeted, taskCount: count }
 }
