@@ -1,11 +1,11 @@
 import type { EventKey, EventMeta } from './types'
 
-// The shared bucket for bookings/vendors that span every function.
-// Always present; not part of the user-editable list.
+// Fallback meta for any item whose event id no longer exists (e.g. a deleted
+// event). Not shown as a selectable event anywhere.
 export const COMMON_EVENT: EventMeta = {
   id: 'common',
-  name: 'Common Planning',
-  emoji: '💍',
+  name: 'Unassigned',
+  emoji: '📌',
   accent: '#D4AF37',
   date: '',
 }
@@ -22,9 +22,9 @@ export const DEFAULT_EVENTS: EventMeta[] = [
   { id: 'wedding', name: 'Wedding', emoji: '🎉', accent: '#D4AF37', date: '' },
 ]
 
-// All events including the implicit Common Planning bucket.
+// The selectable events — just the user's functions.
 export function allEvents(events: EventMeta[]): EventMeta[] {
-  return [COMMON_EVENT, ...events]
+  return [...events]
 }
 
 export function findEvent(events: EventMeta[], key: EventKey): EventMeta {

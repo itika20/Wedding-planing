@@ -21,7 +21,7 @@ const STATE_TABS: { key: State; label: string }[] = [
 ]
 
 const TITLES: Record<State, { h1: string; sub: string; empty: string }> = {
-  all: { h1: 'All tasks', sub: 'Every task across all events, including Common Planning.', empty: 'No tasks yet' },
+  all: { h1: 'All tasks', sub: 'Every task across all your events.', empty: 'No tasks yet' },
   todo: { h1: 'To-do tasks', sub: 'Not started yet, by event.', empty: 'Nothing to do 🎉' },
   in_progress: { h1: 'In-progress tasks', sub: 'Underway, by event.', empty: 'Nothing in progress' },
   completed: { h1: 'Completed tasks', sub: 'Everything that’s done, by event.', empty: 'Nothing completed yet' },

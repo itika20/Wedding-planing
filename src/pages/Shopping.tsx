@@ -40,6 +40,7 @@ export function Shopping() {
   const events = allEvents(eventList)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<ShopRow | null>(null)
+  const [filter, setFilter] = useState<'all' | string>('all') // 'all' or an event id
 
   const rows: ShopRow[] = useMemo(() => {
     const out: ShopRow[] = []
@@ -81,19 +82,22 @@ export function Shopping() {
     return out
   }, [tasks, eventList])
 
+  // Event filter narrows the list and the totals (like the Guests page).
+  const shown = useMemo(() => (filter === 'all' ? rows : rows.filter((r) => r.event.id === filter)), [rows, filter])
+
   const totals = useMemo(() => {
-    const bought = rows.filter((r) => r.done)
+    const bought = shown.filter((r) => r.done)
     return {
-      count: rows.length,
+      count: shown.length,
       bought: bought.length,
-      est: rows.reduce((s, r) => s + r.budgeted, 0),
+      est: shown.reduce((s, r) => s + r.budgeted, 0),
       spent: bought.reduce((s, r) => s + (r.actual || r.budgeted), 0),
     }
-  }, [rows])
+  }, [shown])
 
   const groups = useMemo(
-    () => events.map((ev) => ({ event: ev, items: rows.filter((r) => r.event.id === ev.id) })).filter((g) => g.items.length > 0),
-    [events, rows],
+    () => events.map((ev) => ({ event: ev, items: shown.filter((r) => r.event.id === ev.id) })).filter((g) => g.items.length > 0),
+    [events, shown],
   )
 
   const toggleBought = (row: ShopRow) => {
@@ -130,13 +134,37 @@ export function Shopping() {
         <StatCard index={3} icon={<ShoppingBag size={16} />} label="Actual spent" value={inr(totals.spent, { compact: true })} accent="#E0A458" />
       </div>
 
-      {rows.length === 0 ? (
-        <EmptyState
-          emoji="🛍️"
-          title="Nothing on the list yet"
-          hint="Add an item here, or open a task and turn on “Shopping task” — its items (or the task itself, if it has no subtasks) show up here."
-          action={<button className="btn-gold" onClick={openNew}><Plus size={16} /> Add item</button>}
-        />
+      {rows.length > 0 && eventList.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setFilter('all')}
+            className={`chip transition ${filter === 'all' ? 'bg-champagne text-white' : 'bg-white text-ink-soft hover:bg-ivory'}`}
+          >
+            All events
+          </button>
+          {eventList.map((e) => (
+            <button
+              key={e.id}
+              onClick={() => setFilter(e.id)}
+              className={`chip transition ${filter === e.id ? 'bg-champagne text-white' : 'bg-white text-ink-soft hover:bg-ivory'}`}
+            >
+              {e.emoji} {e.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {shown.length === 0 ? (
+        rows.length === 0 ? (
+          <EmptyState
+            emoji="🛍️"
+            title="Nothing on the list yet"
+            hint="Add an item here, or open a task and turn on “Shopping task” — its items (or the task itself, if it has no subtasks) show up here."
+            action={<button className="btn-gold" onClick={openNew}><Plus size={16} /> Add item</button>}
+          />
+        ) : (
+          <EmptyState emoji="🛍️" title="No items for this function" hint="Try another function, or add an item." />
+        )
       ) : (
         <div className="space-y-5">
           {groups.map(({ event, items }) => {
@@ -239,7 +267,7 @@ function ShoppingModal({
       setPurchased(editing.done)
     } else {
       setName('')
-      setEventKey(events[1]?.id ?? events[0]?.id ?? 'common')
+      setEventKey(events[0]?.id ?? 'common')
       setForWhom('')
       setCost('')
       setActualCost('')

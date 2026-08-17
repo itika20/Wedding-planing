@@ -154,11 +154,8 @@ export function Home() {
 
       {/* Event progress */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3">
           <h2 className="font-display text-xl font-semibold text-ink">Event progress</h2>
-          <Link to="/app/event/common" className="text-sm font-medium text-champagne-deep hover:underline">
-            Common planning →
-          </Link>
         </div>
         {eventList.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-line bg-white/50 px-6 py-8 text-center text-sm text-ink-soft">

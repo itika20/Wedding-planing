@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom'
 import {
   FileText,
   Gauge,
-  Gem,
   Home as HomeIcon,
   ReceiptIndianRupee,
   ShoppingBag,
@@ -15,7 +14,6 @@ import { cn } from '@/lib/utils'
 
 const primary = [
   { to: '/app/home', label: 'Home', icon: HomeIcon },
-  { to: '/app/event/common', label: 'Common Planning', icon: Gem },
 ]
 
 const secondary = [

@@ -33,7 +33,7 @@ export function EventWorkspace() {
   const prevProgress = useRef<number | null>(null)
 
   const eventKey = key as EventKey
-  const isValid = eventKey === 'common' || settings.events.some((e) => e.id === eventKey)
+  const isValid = settings.events.some((e) => e.id === eventKey)
   const st = useMemo(
     () => (isValid ? eventStats(eventKey, tasks) : null),
     [eventKey, isValid, tasks],

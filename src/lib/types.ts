@@ -1,5 +1,4 @@
-// Events are user-defined now, so a key is just a stable string id.
-// 'common' is the reserved id for the shared cross-event bucket.
+// Events are user-defined, so a key is just a stable string id.
 export type EventKey = string
 
 export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled'
@@ -76,7 +75,7 @@ export interface EventMeta {
 export interface WeddingSettings {
   setupDone: boolean
   weddingDate: string // ISO date — the anchor everything counts down to
-  events: EventMeta[] // the user's functions (Common Planning is added implicitly)
+  events: EventMeta[] // the user's functions
 }
 
 export interface Snapshot {

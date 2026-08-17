@@ -152,9 +152,6 @@ export function SetupWizard() {
                   <Check size={16} /> {existing.setupDone ? 'Save changes' : 'Start planning'}
                 </button>
               </div>
-              <p className="mt-3 text-center text-xs text-ink-faint">
-                A shared “Common Planning” space is always included for cross-event bookings.
-              </p>
             </div>
           )}
         </div>

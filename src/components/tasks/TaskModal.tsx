@@ -28,7 +28,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
   const editing = Boolean(task)
 
   const allEv = allEvents(eventsMeta)
-  const fallbackEvent = defaultEvent || allEv[1]?.id || 'common'
+  const fallbackEvent = defaultEvent || allEv[0]?.id || 'common'
 
   const [eventKey, setEventKey] = useState<EventKey>(fallbackEvent)
   const [title, setTitle] = useState('')
