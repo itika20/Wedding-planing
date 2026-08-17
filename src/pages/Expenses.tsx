@@ -4,7 +4,7 @@ import { useStore } from '@/store/useStore'
 import { useCollections } from '@/store/useCollections'
 import { allEvents, findEvent } from '@/lib/events'
 import { eventStats, overallStats } from '@/lib/selectors'
-import { varianceView } from '@/lib/expenses'
+import { varianceView, sumVendorExpenses } from '@/lib/expenses'
 import { TaskExpenseList } from '@/components/expenses/TaskExpenseList'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
@@ -25,12 +25,19 @@ export function Expenses() {
     .filter((v) => (v.budgeted ?? 0) > 0 || (v.actual ?? 0) > 0)
     .sort((a, b) => Math.max(b.actual ?? 0, b.budgeted ?? 0) - Math.max(a.actual ?? 0, a.budgeted ?? 0))
 
-  // Per-event budgeted/actual, biggest first (only events that have spend).
-  const byEvent = events
+  // Spending bars: one per event with spend, plus a "General" bar for vendors
+  // not tied to any event. Biggest first.
+  const general = sumVendorExpenses(vendors.filter((v) => !v.eventKey))
+  const bars = events
     .map((e) => ({ event: e, st: eventStats(e.id, tasks, vendors) }))
     .filter((x) => x.st.budgeted > 0 || x.st.actual > 0)
-    .sort((a, b) => Math.max(b.st.actual, b.st.budgeted) - Math.max(a.st.actual, a.st.budgeted))
-  const maxTotal = byEvent.reduce((m, x) => Math.max(m, x.st.actual, x.st.budgeted), 0)
+    .map((x) => ({ id: x.event.id, label: x.event.name, emoji: x.event.emoji, accent: x.event.accent, actual: x.st.actual, budgeted: x.st.budgeted, to: `/app/event/${x.event.id}` }))
+  if (general.budgeted > 0 || general.actual > 0) {
+    bars.push({ id: 'general', label: 'General', emoji: '📌', accent: '#8CA98C', actual: general.actual, budgeted: general.budgeted, to: '/app/vendors' })
+  }
+  bars.sort((a, b) => Math.max(b.actual, b.budgeted) - Math.max(a.actual, a.budgeted))
+  const maxTotal = bars.reduce((m, b) => Math.max(m, b.actual, b.budgeted), 0)
+  const eventsWithSpend = bars.filter((b) => b.id !== 'general').length
   const hasExpenses = stats.expenseTaskCount > 0 || stats.vendorCount > 0
 
   return (
@@ -46,7 +53,7 @@ export function Expenses() {
         <StatCard index={0} icon={<ReceiptIndianRupee size={16} />} label="Budgeted" value={<CountUp value={stats.budgeted} format={(n) => inr(n, { compact: true })} />} sub={[stats.expenseTaskCount ? `${stats.expenseTaskCount} task${stats.expenseTaskCount === 1 ? '' : 's'}` : null, stats.vendorCount ? `${stats.vendorCount} vendor${stats.vendorCount === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ') || 'nothing yet'} accent="#D4AF37" />
         <StatCard index={1} icon={<Wallet size={16} />} label="Actual spent" value={<CountUp value={stats.actual} format={(n) => inr(n, { compact: true })} />} sub="Logged so far" accent="#5F7A5F" />
         <StatCard index={2} icon={<Scale size={16} />} label={vv.label} value={<CountUp value={vv.amount} format={(n) => inr(n, { compact: true })} />} sub={vv.hint} accent={vv.over ? '#B87883' : '#5F7A5F'} />
-        <StatCard index={3} icon={<ReceiptIndianRupee size={16} />} label="Events with spend" value={<CountUp value={byEvent.length} />} sub={`of ${events.length}`} accent="#8CA98C" />
+        <StatCard index={3} icon={<ReceiptIndianRupee size={16} />} label="Events with spend" value={<CountUp value={eventsWithSpend} />} sub={`of ${events.length}`} accent="#8CA98C" />
       </div>
 
       {!hasExpenses ? (
@@ -60,19 +67,19 @@ export function Expenses() {
           <div className="card p-5">
             <h3 className="mb-4 font-display text-lg font-semibold text-ink">Spending by event</h3>
             <div className="space-y-4">
-              {byEvent.map(({ event, st }) => {
-                const o = st.variance > 0
+              {bars.map((b) => {
+                const o = b.actual - b.budgeted > 0
                 return (
-                  <Link key={event.id} to={`/app/event/${event.id}`} className="block">
+                  <Link key={b.id} to={b.to} className="block">
                     <div className="mb-1 flex items-center justify-between text-sm">
                       <span className="flex items-center gap-2 text-ink">
-                        <span>{event.emoji}</span> {event.name}
+                        <span>{b.emoji}</span> {b.label}
                       </span>
                       <span className="text-ink-soft">
-                        <b className="text-ink">{inr(st.actual, { compact: true })}</b> / {inr(st.budgeted, { compact: true })}
+                        <b className="text-ink">{inr(b.actual, { compact: true })}</b> / {inr(b.budgeted, { compact: true })}
                       </span>
                     </div>
-                    <ProgressBar value={maxTotal ? (st.actual / maxTotal) * 100 : 0} color={o ? '#B87883' : event.accent} />
+                    <ProgressBar value={maxTotal ? (b.actual / maxTotal) * 100 : 0} color={o ? '#B87883' : b.accent} />
                   </Link>
                 )
               })}
