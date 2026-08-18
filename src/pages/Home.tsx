@@ -21,13 +21,13 @@ import type { EventMeta } from '@/lib/types'
 import { CountUp } from '@/components/ui/CountUp'
 import { ProgressRing } from '@/components/ui/ProgressRing'
 import { StatCard } from '@/components/ui/StatCard'
-import { Avatar } from '@/components/ui/Avatar'
-import { daysUntil, fmtDateShort, inr, isDueToday, isOverdue } from '@/lib/utils'
+import { invitedFor } from '@/lib/guests'
+import { daysUntil, fmtDateShort, inr } from '@/lib/utils'
 
 export function Home() {
   const tasks = useStore((s) => s.tasks)
   const vendors = useCollections((s) => s.vendors)
-  const users = useStore((s) => s.users)
+  const guests = useCollections((s) => s.guests)
   const user = useCurrentUser()
   const navigate = useNavigate()
   const { openTask } = useUI()
@@ -71,10 +71,14 @@ export function Home() {
     )
   }
 
-  const todayTasks = tasks
-    .filter((t) => t.status !== 'completed' && t.status !== 'cancelled' && (isDueToday(t.dueDate) || isOverdue(t.dueDate)))
-    .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''))
-    .slice(0, 6)
+  // Per-function head-count for catering/planning — invited people per event
+  // (using each family's per-event override where set).
+  const headcount = eventList
+    .map((e) => ({
+      event: e,
+      invited: guests.filter((g) => (g.events ?? []).includes(e.id)).reduce((s, g) => s + invitedFor(g, e.id), 0),
+    }))
+    .filter((h) => h.invited > 0)
 
   const upcoming = eventList
     .filter((e) => e.date && daysUntil(e.date) >= 0)
@@ -189,47 +193,39 @@ export function Home() {
         )}
       </section>
 
+      {/* Guests per function — concise head-count for catering/planning */}
+      {headcount.length > 0 && (
+        <div className="card p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-display text-lg font-semibold text-ink">Guests by function</h3>
+            <Link to="/app/guests" className="text-sm font-medium text-champagne-deep hover:underline">
+              All guests →
+            </Link>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {headcount.map((h) => (
+              <span
+                key={h.event.id}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-offwhite/50 px-3 py-1.5 text-sm"
+                title={`${h.invited} invited to ${h.event.name}`}
+              >
+                <span>{h.event.emoji}</span>
+                <span className="text-ink-soft">{h.event.name}</span>
+                <span className="ml-0.5 font-semibold tabular-nums text-ink">{h.invited}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Lower grid */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Today's tasks */}
+        {/* Upcoming events */}
         <div className="card p-5 lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-display text-lg font-semibold text-ink">Today & overdue</h3>
-            <span className="chip bg-clay-soft/60 text-clay">{todayTasks.length}</span>
-          </div>
-          {todayTasks.length === 0 ? (
-            <p className="py-8 text-center text-sm text-ink-soft">🎉 Nothing due today. You're all caught up!</p>
-          ) : (
-            <div className="space-y-2">
-              {todayTasks.map((t) => {
-                const overdue = isOverdue(t.dueDate)
-                const assignee = users.find((u) => u.id === t.assignedTo)
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => openTask({ task: t })}
-                    className="flex w-full items-center gap-3 rounded-xl border border-line bg-white px-3 py-2.5 text-left transition hover:border-champagne/50 hover:shadow-soft"
-                  >
-                    <span className="text-lg">{findEvent(events, t.eventKey).emoji}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-ink">{t.title}</p>
-                      <p className="text-xs text-ink-faint">{findEvent(events, t.eventKey).name}</p>
-                    </div>
-                    <span className={`chip ${overdue ? 'bg-clay-soft text-clay' : 'bg-amber-soft text-amber'}`}>
-                      {overdue ? 'Overdue' : 'Today'}
-                    </span>
-                    {assignee && <Avatar user={assignee} size={24} />}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Upcoming events */}
-          <div className="mt-6">
-            <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
-              <CalendarClock size={15} className="text-champagne-deep" /> Upcoming events
-            </h4>
+          <div>
+            <h3 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold text-ink">
+              <CalendarClock size={17} className="text-champagne-deep" /> Upcoming events
+            </h3>
             {upcoming.length === 0 ? (
               <p className="rounded-xl border border-dashed border-line bg-offwhite/40 px-3 py-4 text-center text-xs text-ink-faint">
                 No dated events yet — add dates in Settings.

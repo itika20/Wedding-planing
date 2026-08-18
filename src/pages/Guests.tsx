@@ -3,6 +3,7 @@ import { BedDouble, Check, ChevronDown, Pencil, Plus, Search, Trash2, UserRound,
 import { useCollections } from '@/store/useCollections'
 import { useStore } from '@/store/useStore'
 import { findEvent } from '@/lib/events'
+import { invitedFor, expectedFor, comingFor } from '@/lib/guests'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { StatCard } from '@/components/ui/StatCard'
@@ -31,22 +32,6 @@ const GUEST_CATEGORIES: { id: string; label: string }[] = [
 ]
 const OTHER_CATEGORY = '__other'
 const categoryLabel = (id?: string) => GUEST_CATEGORIES.find((c) => c.id === id)?.label ?? 'Other'
-
-// Overall (whole-wedding) head math, with sensible fallbacks for guests saved
-// before expected/coming existed: everyone invited is expected, and a "yes"
-// RSVP means the whole party is coming until the actual count is edited.
-const overallInvited = (g: Guest) => g.count || 1
-const overallExpected = (g: Guest) => g.expected ?? overallInvited(g)
-const overallComing = (g: Guest) => g.coming ?? (g.rsvp === 'yes' ? overallInvited(g) : 0)
-
-// Head math for a given view: a specific function (using its per-event override
-// when set) or the family's overall figure when viewing all guests.
-const invitedFor = (g: Guest, ev?: string) =>
-  ev && g.perEvent?.[ev]?.invited != null ? g.perEvent[ev]!.invited! : overallInvited(g)
-const expectedFor = (g: Guest, ev?: string) =>
-  ev && g.perEvent?.[ev]?.expected != null ? g.perEvent[ev]!.expected! : overallExpected(g)
-const comingFor = (g: Guest, ev?: string) =>
-  ev && g.perEvent?.[ev]?.coming != null ? g.perEvent[ev]!.coming! : overallComing(g)
 
 export function Guests() {
   const guests = useCollections((s) => s.guests)
