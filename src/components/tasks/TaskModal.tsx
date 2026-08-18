@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid'
 import { Modal } from '@/components/ui/Modal'
 import { useStore } from '@/store/useStore'
 import { allEvents } from '@/lib/events'
+import { SHOP_CATEGORIES } from '@/lib/shopping'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn, inr, nowISO } from '@/lib/utils'
 import type { ChecklistItem, EventKey, Task, TaskStatus } from '@/lib/types'
@@ -38,6 +39,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
   const [budgeted, setBudgeted] = useState('')
   const [actual, setActual] = useState('')
   const [shopping, setShopping] = useState(false)
+  const [forWhom, setForWhom] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -49,6 +51,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
     setBudgeted(task?.budgeted ? String(task.budgeted) : '')
     setActual(task?.actual ? String(task.actual) : '')
     setShopping(task?.shopping ?? false)
+    setForWhom(task?.forWhom ?? '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, task])
 
@@ -75,6 +78,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
       budgeted: money(budgeted),
       actual: money(actual),
       shopping,
+      forWhom: shopping ? forWhom || undefined : undefined,
       eventKey,
     }
     if (task) {
@@ -182,6 +186,20 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
             </span>
           </span>
         </label>
+
+        {/* Who the shopping is for — groups the Shopping page. */}
+        {shopping && (
+          <div>
+            <label className="label">For (person)</label>
+            <select className="input" value={forWhom} onChange={(e) => setForWhom(e.target.value)}>
+              <option value="">Unassigned</option>
+              {SHOP_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-xs text-ink-faint">Groups this task's purchases under a person on the Shopping page.</p>
+          </div>
+        )}
 
         {/* Task-level expense (optional). Disabled when subtasks carry amounts. */}
         <div>

@@ -65,18 +65,35 @@ type AnyTask = Record<string, any>
 type AnyActivity = Record<string, any>
 type AnyUser = Record<string, any>
 
+// Idempotently self-migrate columns added after the initial schema, so a deploy
+// never breaks task saves waiting on a manual `neon/schema.sql` re-run. Runs at
+// most once per warm function instance; `if not exists` makes it a no-op after.
+let taskColumnsReady: Promise<void> | null = null
+function ensureTaskColumns(sql: ReturnType<typeof getSql>) {
+  if (!taskColumnsReady) {
+    taskColumnsReady = (async () => {
+      await sql`alter table tasks add column if not exists for_whom text`
+    })().catch((e) => {
+      taskColumnsReady = null // let a later request retry
+      throw e
+    })
+  }
+  return taskColumnsReady
+}
+
 export async function upsertTask(t: AnyTask) {
   const sql = getSql()
+  await ensureTaskColumns(sql)
   await sql`
     insert into tasks
       (id, event_key, title, description, assigned_to, created_by, priority, status,
-       due_date, completion_pct, checklist, budgeted, actual, shopping, shopping_list,
+       due_date, completion_pct, checklist, budgeted, actual, shopping, for_whom, shopping_list,
        created_at, updated_at, completed_at)
     values
       (${t.id}, ${t.eventKey}, ${t.title}, ${t.description ?? ''}, ${t.assignedTo ?? null},
        ${t.createdBy ?? null}, ${t.priority ?? 'medium'}, ${t.status ?? 'todo'},
        ${t.dueDate ?? null}, ${t.completionPct ?? 0}, ${JSON.stringify(t.checklist ?? [])}::jsonb,
-       ${t.budgeted ?? 0}, ${t.actual ?? 0}, ${t.shopping ?? false}, ${t.shoppingList ?? false},
+       ${t.budgeted ?? 0}, ${t.actual ?? 0}, ${t.shopping ?? false}, ${t.forWhom ?? null}, ${t.shoppingList ?? false},
        ${t.createdAt}, ${t.updatedAt}, ${t.completedAt ?? null})
     on conflict (id) do update set
       event_key      = excluded.event_key,
@@ -91,6 +108,7 @@ export async function upsertTask(t: AnyTask) {
       budgeted       = excluded.budgeted,
       actual         = excluded.actual,
       shopping       = excluded.shopping,
+      for_whom       = excluded.for_whom,
       shopping_list  = excluded.shopping_list,
       updated_at     = excluded.updated_at,
       completed_at   = excluded.completed_at

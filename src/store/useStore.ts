@@ -255,6 +255,7 @@ export const useStore = create<StoreState>((set, get) => {
         budgeted: input.budgeted ?? 0,
         actual: input.actual ?? 0,
         shopping: input.shopping ?? false,
+        forWhom: input.forWhom,
         shoppingList: input.shoppingList ?? false,
         createdAt: ts,
         updatedAt: ts,

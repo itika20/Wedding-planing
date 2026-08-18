@@ -7,9 +7,8 @@ import { StatCard } from '@/components/ui/StatCard'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Avatar } from '@/components/ui/Avatar'
 import { cn, inr, nowISO } from '@/lib/utils'
+import { SHOP_CATEGORIES, shopCategory } from '@/lib/shopping'
 import type { ChecklistItem, EventMeta } from '@/lib/types'
-
-const FOR_OPTIONS = ['Bride', 'Parents', 'Decor', 'Gifts', 'Accessories', 'Household', 'Other']
 
 // A shopping item is derived from a "shopping task". If the task has subtasks,
 // each subtask is an item; otherwise the task itself is the item.
@@ -60,7 +59,7 @@ export function Shopping() {
             done: item.done,
             budgeted: item.budgeted || 0,
             actual: item.actual || 0,
-            forWhom: item.forWhom,
+            forWhom: item.forWhom ?? task.forWhom, // subtask tag overrides the task's
             store: item.store,
             checkedBy: item.checkedBy,
             context: task.shoppingList ? undefined : task.title,
@@ -76,6 +75,7 @@ export function Shopping() {
           done: task.status === 'completed',
           budgeted: task.budgeted || 0,
           actual: task.actual || 0,
+          forWhom: task.forWhom,
         })
       }
     }
@@ -95,9 +95,14 @@ export function Shopping() {
     }
   }, [shown])
 
+  // Group by who the purchase is for (like the Guests page), in a fixed order
+  // with an "Other" bucket last. The event filter still narrows the list.
   const groups = useMemo(
-    () => events.map((ev) => ({ event: ev, items: shown.filter((r) => r.event.id === ev.id) })).filter((g) => g.items.length > 0),
-    [events, shown],
+    () =>
+      SHOP_CATEGORIES.map((cat) => ({ cat, items: shown.filter((r) => shopCategory(r.forWhom) === cat) })).filter(
+        (g) => g.items.length > 0,
+      ),
+    [shown],
   )
 
   const toggleBought = (row: ShopRow) => {
@@ -167,19 +172,18 @@ export function Shopping() {
         )
       ) : (
         <div className="space-y-5">
-          {groups.map(({ event, items }) => {
+          {groups.map(({ cat, items }) => {
             const bought = items.filter((r) => r.done).length
             return (
-              <div key={event.id} className="overflow-hidden rounded-2xl border border-line bg-white">
+              <div key={cat} className="overflow-hidden rounded-2xl border border-line bg-white">
                 <div className="flex items-center gap-2 border-b border-line bg-offwhite/50 px-4 py-2.5">
-                  <span className="text-base">{event.emoji}</span>
-                  <span className="text-sm font-semibold text-ink">{event.name}</span>
+                  <span className="text-sm font-semibold text-ink">{cat}</span>
                   <span className="ml-auto text-xs text-ink-faint">{bought}/{items.length} bought</span>
                 </div>
                 <div className="divide-y divide-line">
                   {items.map((row) => {
                     const by = users.find((u) => u.id === row.checkedBy)
-                    const meta = [row.forWhom, row.store, row.context ? `in ${row.context}` : null].filter(Boolean).join(' · ')
+                    const meta = [`${row.event.emoji} ${row.event.name}`, row.store, row.context ? `in ${row.context}` : null].filter(Boolean).join(' · ')
                     const est = row.budgeted
                     const paid = row.actual
                     return (
@@ -278,8 +282,8 @@ function ShoppingModal({
 
   const canSave = name.trim().length > 0
   const num = (v: string) => (Number(v) > 0 ? Math.round(Number(v)) : 0)
-  // Show For / Store only for the shopping-list-item shape (add + subtask edit).
-  const showMeta = !isEdit || isSubtask
+  // Store only applies to the shopping-list-item shape (add + subtask edit).
+  const showStore = !isEdit || isSubtask
 
   const save = () => {
     if (!canSave) return
@@ -312,7 +316,7 @@ function ShoppingModal({
       setSubtask(editing.taskId, editing.itemId!, patch)
     } else if (editing) {
       // The whole task is the item.
-      const patch: any = { title: name.trim(), budgeted: num(cost), actual: purchased ? num(actualCost) : 0 }
+      const patch: any = { title: name.trim(), budgeted: num(cost), actual: purchased ? num(actualCost) : 0, forWhom: forWhom || undefined }
       if (purchased && !editing.done) patch.status = 'completed'
       if (!purchased && editing.done) patch.status = 'todo'
       updateTask(editing.taskId, patch)
@@ -355,22 +359,20 @@ function ShoppingModal({
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          {showMeta && (
-            <div>
-              <label className="label">For</label>
-              <select className="input" value={forWhom} onChange={(e) => setForWhom(e.target.value)}>
-                <option value="">General</option>
-                {FOR_OPTIONS.map((f) => <option key={f}>{f}</option>)}
-              </select>
-            </div>
-          )}
-          <div className={showMeta ? '' : 'col-span-2'}>
+          <div>
+            <label className="label">For (person)</label>
+            <select className="input" value={forWhom} onChange={(e) => setForWhom(e.target.value)}>
+              <option value="">Unassigned</option>
+              {SHOP_CATEGORIES.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div>
             <label className="label">Est. cost (₹)</label>
             <input type="number" min={0} className="input" value={cost} placeholder="Optional" onChange={(e) => setCost(e.target.value)} />
           </div>
         </div>
 
-        {showMeta && (
+        {showStore && (
           <div>
             <label className="label">Store / source</label>
             <input className="input" value={store} placeholder="Optional" onChange={(e) => setStore(e.target.value)} />

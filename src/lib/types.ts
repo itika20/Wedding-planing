@@ -44,6 +44,9 @@ export interface Task {
   // A "shopping task" — its purchases show on the Shopping page. If it has
   // subtasks, each subtask is an item; otherwise the task itself is one item.
   shopping?: boolean
+  // Who this task's purchases are for — groups the Shopping page (e.g. Itika,
+  // Mummy). A subtask's own forWhom overrides this for that item.
+  forWhom?: string
   // Auto-created "Shopping" bucket that collects loose purchases added straight
   // from the Shopping view for this event. Removed automatically when emptied.
   shoppingList?: boolean

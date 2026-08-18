@@ -51,6 +51,7 @@ const rowToTask = (r: any): Task => ({
   budgeted: Number(r.budgeted) || 0,
   actual: Number(r.actual) || 0,
   shopping: Boolean(r.shopping),
+  forWhom: r.for_whom ?? undefined,
   shoppingList: Boolean(r.shopping_list),
   createdAt: r.created_at,
   updatedAt: r.updated_at,
