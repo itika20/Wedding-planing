@@ -29,15 +29,29 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
+  // Match task titles AND subtask text. A subtask hit points at its parent task
+  // (opening the task lets you see/tick that subtask).
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (q.length < 2) return { tasks: [] }
-    return {
-      tasks: tasks.filter((t) => t.title.toLowerCase().includes(q)).slice(0, 6),
+    if (q.length < 2) return []
+    const out: { key: string; kind: 'task' | 'subtask'; task: (typeof tasks)[number]; label: string; done?: boolean }[] = []
+    for (const t of tasks) {
+      if (t.title.toLowerCase().includes(q)) out.push({ key: `t:${t.id}`, kind: 'task', task: t, label: t.title })
+      for (const c of t.checklist ?? []) {
+        if (c.text.toLowerCase().includes(q)) out.push({ key: `s:${c.id}`, kind: 'subtask', task: t, label: c.text, done: c.done })
+      }
+      if (out.length >= 8) break
     }
+    return out.slice(0, 8)
   }, [query, tasks])
 
-  const hasResults = results.tasks.length > 0
+  const hasResults = results.length > 0
+
+  const openResult = (task: (typeof tasks)[number]) => {
+    openTask({ task })
+    setQuery('')
+    searchRef.current?.blur()
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-ivory/80 backdrop-blur-md">
@@ -81,21 +95,21 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
                 className="absolute left-0 right-0 top-12 z-40 overflow-hidden rounded-2xl border border-line bg-white shadow-lift"
               >
                 {!hasResults && <div className="px-4 py-6 text-center text-sm text-ink-soft">No matches found</div>}
-                {results.tasks.length > 0 && (
+                {hasResults && (
                   <div className="p-2">
-                    <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Tasks</p>
-                    {results.tasks.map((t) => (
+                    <p className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Tasks &amp; items</p>
+                    {results.map((r) => (
                       <button
-                        key={t.id}
-                        onMouseDown={() => {
-                          navigate(`/app/event/${t.eventKey}`)
-                          setQuery('')
-                        }}
+                        key={r.key}
+                        onMouseDown={() => openResult(r.task)}
                         className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-ivory"
                       >
-                        <span>{findEvent(events, t.eventKey).emoji}</span>
-                        <span className="flex-1 truncate text-ink">{t.title}</span>
-                        <span className="text-xs text-ink-faint">{findEvent(events, t.eventKey).name}</span>
+                        <span>{findEvent(events, r.task.eventKey).emoji}</span>
+                        <span className={`flex-1 truncate ${r.done ? 'text-ink-faint line-through' : 'text-ink'}`}>
+                          {r.label}
+                          {r.kind === 'subtask' && <span className="text-ink-faint"> · in {r.task.title}</span>}
+                        </span>
+                        <span className="text-xs text-ink-faint">{findEvent(events, r.task.eventKey).name}</span>
                       </button>
                     ))}
                   </div>
