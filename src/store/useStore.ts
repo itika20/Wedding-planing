@@ -256,6 +256,7 @@ export const useStore = create<StoreState>((set, get) => {
         actual: input.actual ?? 0,
         shopping: input.shopping ?? false,
         forWhom: input.forWhom,
+        targetMonth: input.targetMonth,
         shoppingList: input.shoppingList ?? false,
         createdAt: ts,
         updatedAt: ts,

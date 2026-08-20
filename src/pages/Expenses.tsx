@@ -4,13 +4,13 @@ import { useStore } from '@/store/useStore'
 import { useCollections } from '@/store/useCollections'
 import { allEvents, findEvent } from '@/lib/events'
 import { eventStats, overallStats } from '@/lib/selectors'
-import { varianceView, sumVendorExpenses } from '@/lib/expenses'
+import { varianceView, sumVendorExpenses, taskExpense } from '@/lib/expenses'
 import { TaskExpenseList } from '@/components/expenses/TaskExpenseList'
 import { StatCard } from '@/components/ui/StatCard'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { CountUp } from '@/components/ui/CountUp'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { inr } from '@/lib/utils'
+import { inr, fmtMonth } from '@/lib/utils'
 
 export function Expenses() {
   const tasks = useStore((s) => s.tasks)
@@ -39,6 +39,23 @@ export function Expenses() {
   const maxTotal = bars.reduce((m, b) => Math.max(m, b.actual, b.budgeted), 0)
   const eventsWithSpend = bars.filter((b) => b.id !== 'general').length
   const hasExpenses = stats.expenseTaskCount > 0 || stats.vendorCount > 0
+
+  // How much needs spending each month — task expenses bucketed by target month,
+  // in chronological order (tasks with no month set fall into a "No month" row).
+  const monthMap = new Map<string, { budgeted: number; actual: number }>()
+  for (const t of tasks) {
+    const e = taskExpense(t)
+    if (e.budgeted <= 0 && e.actual <= 0) continue
+    const key = t.targetMonth || ''
+    const cur = monthMap.get(key) ?? { budgeted: 0, actual: 0 }
+    cur.budgeted += e.budgeted
+    cur.actual += e.actual
+    monthMap.set(key, cur)
+  }
+  const byMonth = [...monthMap.entries()]
+    .map(([month, v]) => ({ month, ...v }))
+    .sort((a, b) => (!a.month ? 1 : !b.month ? -1 : a.month.localeCompare(b.month)))
+  const maxMonth = byMonth.reduce((m, x) => Math.max(m, x.budgeted, x.actual), 0)
 
   return (
     <div className="space-y-6">
@@ -85,6 +102,32 @@ export function Expenses() {
               })}
             </div>
           </div>
+
+          {byMonth.length > 0 && (
+            <div className="card p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-display text-lg font-semibold text-ink">Spending by month</h3>
+                <span className="text-xs text-ink-faint">what to spend each month</span>
+              </div>
+              <div className="space-y-4">
+                {byMonth.map((m) => {
+                  const over = m.actual - m.budgeted > 0
+                  return (
+                    <div key={m.month || 'none'}>
+                      <div className="mb-1 flex items-center justify-between text-sm">
+                        <span className={m.month ? 'text-ink' : 'text-ink-faint'}>{fmtMonth(m.month)}</span>
+                        <span className="text-ink-soft">
+                          <b className="text-ink">{inr(m.budgeted, { compact: true })}</b>
+                          {m.actual > 0 && <> · {inr(m.actual, { compact: true })} spent</>}
+                        </span>
+                      </div>
+                      <ProgressBar value={maxMonth ? (m.budgeted / maxMonth) * 100 : 0} color={over ? '#B87883' : '#8CA98C'} />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           <div>
             <h3 className="mb-3 font-display text-lg font-semibold text-ink">All task expenses</h3>

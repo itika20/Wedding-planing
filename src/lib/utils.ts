@@ -47,6 +47,16 @@ export function fmtDateShort(iso: string | null): string {
   return fmtDate(iso, 'd MMM')
 }
 
+// "2026-10" → "Oct 2026". Empty → "No month".
+export function fmtMonth(ym: string | null | undefined): string {
+  if (!ym) return 'No month'
+  try {
+    return format(parseISO(`${ym}-01`), 'MMM yyyy')
+  } catch {
+    return ym
+  }
+}
+
 export function relativeTime(iso: string): string {
   try {
     return formatDistanceToNowStrict(parseISO(iso), { addSuffix: true })

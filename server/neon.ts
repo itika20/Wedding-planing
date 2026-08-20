@@ -73,6 +73,7 @@ function ensureTaskColumns(sql: ReturnType<typeof getSql>) {
   if (!taskColumnsReady) {
     taskColumnsReady = (async () => {
       await sql`alter table tasks add column if not exists for_whom text`
+      await sql`alter table tasks add column if not exists target_month text`
     })().catch((e) => {
       taskColumnsReady = null // let a later request retry
       throw e
@@ -87,13 +88,13 @@ export async function upsertTask(t: AnyTask) {
   await sql`
     insert into tasks
       (id, event_key, title, description, assigned_to, created_by, priority, status,
-       due_date, completion_pct, checklist, budgeted, actual, shopping, for_whom, shopping_list,
+       due_date, completion_pct, checklist, budgeted, actual, shopping, for_whom, target_month, shopping_list,
        created_at, updated_at, completed_at)
     values
       (${t.id}, ${t.eventKey}, ${t.title}, ${t.description ?? ''}, ${t.assignedTo ?? null},
        ${t.createdBy ?? null}, ${t.priority ?? 'medium'}, ${t.status ?? 'todo'},
        ${t.dueDate ?? null}, ${t.completionPct ?? 0}, ${JSON.stringify(t.checklist ?? [])}::jsonb,
-       ${t.budgeted ?? 0}, ${t.actual ?? 0}, ${t.shopping ?? false}, ${t.forWhom ?? null}, ${t.shoppingList ?? false},
+       ${t.budgeted ?? 0}, ${t.actual ?? 0}, ${t.shopping ?? false}, ${t.forWhom ?? null}, ${t.targetMonth ?? null}, ${t.shoppingList ?? false},
        ${t.createdAt}, ${t.updatedAt}, ${t.completedAt ?? null})
     on conflict (id) do update set
       event_key      = excluded.event_key,
@@ -109,6 +110,7 @@ export async function upsertTask(t: AnyTask) {
       actual         = excluded.actual,
       shopping       = excluded.shopping,
       for_whom       = excluded.for_whom,
+      target_month   = excluded.target_month,
       shopping_list  = excluded.shopping_list,
       updated_at     = excluded.updated_at,
       completed_at   = excluded.completed_at

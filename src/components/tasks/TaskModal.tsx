@@ -40,6 +40,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
   const [actual, setActual] = useState('')
   const [shopping, setShopping] = useState(false)
   const [forWhom, setForWhom] = useState('')
+  const [targetMonth, setTargetMonth] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -52,6 +53,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
     setActual(task?.actual ? String(task.actual) : '')
     setShopping(task?.shopping ?? false)
     setForWhom(task?.forWhom ?? '')
+    setTargetMonth(task?.targetMonth ?? '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, task])
 
@@ -79,6 +81,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
       actual: money(actual),
       shopping,
       forWhom: shopping ? forWhom || undefined : undefined,
+      targetMonth: targetMonth || undefined,
       eventKey,
     }
     if (task) {
@@ -167,6 +170,12 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
             placeholder="Any details, links, or context…"
             onChange={(e) => setDescription(e.target.value)}
           />
+        </div>
+
+        <div>
+          <label className="label">Do / buy by (month)</label>
+          <input type="month" className="input" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} />
+          <p className="mt-1.5 text-xs text-ink-faint">Feeds the “Spending by month” breakdown on the Expenses page.</p>
         </div>
 
         {/* Task-level flag: does this task's purchases show on the Shopping page? */}

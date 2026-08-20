@@ -29,6 +29,7 @@ create table if not exists tasks (
   actual         numeric default 0,
   shopping       boolean default false,
   for_whom       text,
+  target_month   text,
   shopping_list  boolean default false,
   created_at     timestamptz default now(),
   updated_at     timestamptz default now(),
@@ -39,6 +40,7 @@ create table if not exists tasks (
 -- these on first task save, so a manual run is optional.)
 alter table tasks add column if not exists shopping boolean default false;
 alter table tasks add column if not exists for_whom text;
+alter table tasks add column if not exists target_month text;
 
 create table if not exists activity (
   id         text primary key,

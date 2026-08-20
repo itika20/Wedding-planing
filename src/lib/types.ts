@@ -47,6 +47,9 @@ export interface Task {
   // Who this task's purchases are for — groups the Shopping page (e.g. Itika,
   // Mummy). A subtask's own forWhom overrides this for that item.
   forWhom?: string
+  // Which month this should be done / bought, as "YYYY-MM". Drives the
+  // per-month spending breakdown on the Expenses page.
+  targetMonth?: string
   // Auto-created "Shopping" bucket that collects loose purchases added straight
   // from the Shopping view for this event. Removed automatically when emptied.
   shoppingList?: boolean
