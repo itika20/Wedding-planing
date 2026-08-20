@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { nanoid } from 'nanoid'
-import type { Activity, ChecklistItem, EventKey, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
+import type { Activity, ChecklistItem, EventKey, EventMeta, Snapshot, Task, User, WeddingSettings } from '@/lib/types'
 import { cloud, loadSnapshot, saveLocal, saveSettingsCloud } from '@/lib/db'
 import { api } from '@/lib/cloud'
 import { useCollections } from '@/store/useCollections'
@@ -42,6 +42,7 @@ interface StoreState {
   signOut: () => Promise<void>
   completeSetup: (settings: WeddingSettings) => void
   updateSettings: (patch: Partial<WeddingSettings>) => void
+  reorderEvents: (events: EventMeta[]) => void
   setCurrentUser: (id: string | null) => void
   showToast: (message: string, tone?: 'success' | 'info' | 'error') => void
   dismissToast: () => void
@@ -213,6 +214,14 @@ export const useStore = create<StoreState>((set, get) => {
       const next = { ...get().settings, ...patch }
       saveSettings(next)
       set({ settings: next })
+    },
+
+    // Reordering events is a shared change, so it syncs to the whole family.
+    reorderEvents: (events) => {
+      const next = { ...get().settings, events }
+      saveSettings(next)
+      set({ settings: next })
+      saveSettingsCloud(next)
     },
 
     setCurrentUser: (id) => {
