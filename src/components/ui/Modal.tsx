@@ -5,6 +5,10 @@ import { useEffect } from 'react'
 interface Props {
   open: boolean
   onClose: () => void
+  // Fired when the modal is dismissed without an explicit button — backdrop
+  // click, Escape, or the header ✕. Defaults to onClose; a modal can pass this
+  // to auto-save on dismiss instead of discarding.
+  onDismiss?: () => void
   title?: React.ReactNode
   subtitle?: React.ReactNode
   children: React.ReactNode
@@ -14,17 +18,18 @@ interface Props {
 
 const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl' }
 
-export function Modal({ open, onClose, title, subtitle, children, footer, size = 'md' }: Props) {
+export function Modal({ open, onClose, onDismiss, title, subtitle, children, footer, size = 'md' }: Props) {
+  const dismiss = onDismiss ?? onClose
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && dismiss()
     window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
     }
-  }, [open, onClose])
+  }, [open, dismiss])
 
   return (
     <AnimatePresence>
@@ -35,7 +40,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={dismiss}
           />
           <motion.div
             className={`relative z-10 flex max-h-[92vh] w-full ${widths[size]} flex-col overflow-hidden rounded-t-3xl bg-ivory shadow-lift sm:rounded-3xl`}
@@ -50,7 +55,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
                   {title && <h3 className="text-xl font-semibold text-ink">{title}</h3>}
                   {subtitle && <p className="mt-0.5 text-sm text-ink-soft">{subtitle}</p>}
                 </div>
-                <button onClick={onClose} className="rounded-lg p-1.5 text-ink-faint transition hover:bg-ink/5 hover:text-ink">
+                <button onClick={dismiss} className="rounded-lg p-1.5 text-ink-faint transition hover:bg-ink/5 hover:text-ink">
                   <X size={18} />
                 </button>
               </div>

@@ -92,6 +92,13 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
     onClose()
   }
 
+  // Dismissing the popup (click outside, Escape, or ✕) auto-saves when there's
+  // a title; an empty new-task draft is just discarded. "Cancel" always discards.
+  const handleDismiss = () => {
+    if (canSave) submit()
+    else onClose()
+  }
+
   const addChecklistItem = () => {
     if (!newItem.trim()) return
     setChecklist((c) => [...c, { id: nanoid(6), text: newItem.trim(), done: false, checkedBy: null }])
@@ -116,6 +123,7 @@ export function TaskModal({ open, onClose, task, defaultEvent, defaultStatus = '
     <Modal
       open={open}
       onClose={onClose}
+      onDismiss={handleDismiss}
       title={editing ? 'Edit task' : 'New task'}
       size="md"
       footer={
