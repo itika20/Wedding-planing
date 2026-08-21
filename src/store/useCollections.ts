@@ -19,6 +19,26 @@ interface State extends Collections {
 
 const KINDS: CollKey[] = ['vendors', 'guests', 'documents']
 
+// Collection items have no updatedAt, so we track ids written/deleted locally in
+// the last couple of minutes. A background hydrate then preserves those recent
+// local writes (and honours recent deletes) instead of clobbering an edit whose
+// sync is still in flight.
+const PENDING_MS = 2 * 60 * 1000
+const pendingWrites = new Map<string, number>()
+const pendingDeletes = new Map<string, number>()
+const markWrite = (id: string) => {
+  pendingWrites.set(id, Date.now())
+  pendingDeletes.delete(id)
+}
+const markDelete = (id: string) => {
+  pendingDeletes.set(id, Date.now())
+  pendingWrites.delete(id)
+}
+const isRecent = (m: Map<string, number>, id: string) => {
+  const t = m.get(id)
+  return t != null && Date.now() - t < PENDING_MS
+}
+
 export const useCollections = create<State>()(
   persist(
     (set, get) => ({
@@ -28,6 +48,7 @@ export const useCollections = create<State>()(
 
       add: (coll, item) => {
         const created: any = { ...item, id: nanoid(10), createdAt: nowISO() }
+        markWrite(created.id)
         set((s) => ({ [coll]: [created, ...(s[coll] as any[])] }) as any)
         if (isCloud()) void api.mutate('upsertCollection', { kind: coll, item: created })
       },
@@ -41,10 +62,14 @@ export const useCollections = create<State>()(
             return updated
           }),
         }) as any)
-        if (isCloud() && updated) void api.mutate('upsertCollection', { kind: coll, item: updated })
+        if (updated) {
+          markWrite(id)
+          if (isCloud()) void api.mutate('upsertCollection', { kind: coll, item: updated })
+        }
       },
 
       remove: (coll, id) => {
+        markDelete(id)
         set((s) => ({ [coll]: (s[coll] as any[]).filter((x) => x.id !== id) }) as any)
         if (isCloud()) void api.mutate('deleteCollection', { id })
       },
@@ -54,15 +79,24 @@ export const useCollections = create<State>()(
         const next: any = {}
         for (const kind of KINDS) {
           const fromServer = (server[kind] as any[]) ?? []
-          if (fromServer.length > 0) {
-            next[kind] = fromServer // server is the source of truth once it has data
-          } else {
+          if (fromServer.length === 0) {
             next[kind] = local[kind] // keep local; nothing on the server yet
             if (bootstrap) {
               // Seed the server from this device's local items so the family shares them.
               for (const item of local[kind] as any[]) void api.mutate('upsertCollection', { kind, item })
             }
+            continue
           }
+          // Server has data — take it, but preserve recent local writes and honour
+          // recent local deletes so an in-flight sync isn't clobbered.
+          const byId = new Map<string, any>(fromServer.map((x) => [x.id, x]))
+          for (const item of local[kind] as any[]) {
+            if (isRecent(pendingWrites, item.id)) byId.set(item.id, item)
+          }
+          for (const id of [...byId.keys()]) {
+            if (isRecent(pendingDeletes, id)) byId.delete(id)
+          }
+          next[kind] = [...byId.values()]
         }
         set(next)
       },

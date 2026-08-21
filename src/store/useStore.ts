@@ -77,6 +77,25 @@ interface StoreState {
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let focusHandler: (() => void) | null = null
 
+// Merge server tasks with local ones so a background refresh never clobbers an
+// edit whose async save hasn't finished syncing yet. Per id the newer updatedAt
+// wins; a local-only task is kept only if it was touched recently (an unsynced
+// add/edit), so we don't resurrect tasks deleted on another device.
+const RECENT_LOCAL_MS = 2 * 60 * 1000
+function mergeTasks(server: Task[], local: Task[]): Task[] {
+  const localById = new Map(local.map((t) => [t.id, t]))
+  const serverIds = new Set(server.map((t) => t.id))
+  const merged: Task[] = server.map((s) => {
+    const l = localById.get(s.id)
+    return l && l.updatedAt && s.updatedAt && l.updatedAt > s.updatedAt ? l : s
+  })
+  for (const l of local) {
+    if (serverIds.has(l.id)) continue
+    if (Date.now() - (l.updatedAt ? Date.parse(l.updatedAt) : 0) < RECENT_LOCAL_MS) merged.push(l)
+  }
+  return merged
+}
+
 export const useStore = create<StoreState>((set, get) => {
   const persist = () => {
     const { tasks, activity, users } = get()
@@ -85,14 +104,14 @@ export const useStore = create<StoreState>((set, get) => {
 
   const loadData = async () => {
     const { snapshot, mode, cloudError, serverSettings, serverCollections } = await loadSnapshot()
-    set({
-      tasks: snapshot.tasks,
+    set((s) => ({
+      tasks: mergeTasks(snapshot.tasks, s.tasks),
       activity: snapshot.activity,
       users: reconcileUsers(snapshot.users),
       mode,
       cloudError,
       loading: false,
-    })
+    }))
     if (mode !== 'cloud') return
     // In cloud mode the shared settings (date + events) are the source of truth,
     // so everyone skips the wizard and sees the same events once someone set up.
@@ -175,11 +194,13 @@ export const useStore = create<StoreState>((set, get) => {
 
     refresh: async () => {
       const { snapshot, serverCollections } = await loadSnapshot()
-      set({
-        tasks: snapshot.tasks,
+      // Merge, don't replace: a fresh local edit whose save is still in flight
+      // must survive a background refresh (otherwise it looks "not saved").
+      set((s) => ({
+        tasks: mergeTasks(snapshot.tasks, s.tasks),
         activity: snapshot.activity,
         users: reconcileUsers(snapshot.users),
-      })
+      }))
       // Pick up vendors/guests/documents changed on other devices (no bootstrap).
       if (serverCollections) useCollections.getState().hydrate(serverCollections, false)
     },
