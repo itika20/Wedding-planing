@@ -102,6 +102,7 @@ export interface Vendor {
   status: VendorStatus
   budgeted?: number // quoted / agreed cost — rolls into Expenses
   actual?: number // amount actually paid — rolls into Expenses
+  targetMonth?: string // which month payment is due, "YYYY-MM" — feeds Spending by month
   notes: string
   createdAt: string
 }

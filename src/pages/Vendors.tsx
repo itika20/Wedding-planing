@@ -4,7 +4,7 @@ import { useCollections } from '@/store/useCollections'
 import { useStore } from '@/store/useStore'
 import { allEvents, findEvent } from '@/lib/events'
 import { sumVendorExpenses } from '@/lib/expenses'
-import { inr } from '@/lib/utils'
+import { inr, fmtMonth } from '@/lib/utils'
 import type { EventMeta } from '@/lib/types'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
@@ -77,6 +77,7 @@ export function Vendors() {
                   <p className="truncate text-xs text-ink-faint">
                     {v.category || 'Vendor'}
                     {v.eventKey ? ` · ${findEvent(events, v.eventKey).name}` : ''}
+                    {v.targetMonth ? ` · Pay ${fmtMonth(v.targetMonth)}` : ''}
                     {v.phone && (
                       <>
                         {' · '}
@@ -148,6 +149,7 @@ function VendorModal({
   const [status, setStatus] = useState<VendorStatus>('pending')
   const [budgeted, setBudgeted] = useState('')
   const [actual, setActual] = useState('')
+  const [targetMonth, setTargetMonth] = useState('')
   const [notes, setNotes] = useState('')
 
   useEffect(() => {
@@ -159,6 +161,7 @@ function VendorModal({
     setStatus(vendor?.status ?? 'pending')
     setBudgeted(vendor?.budgeted ? String(vendor.budgeted) : '')
     setActual(vendor?.actual ? String(vendor.actual) : '')
+    setTargetMonth(vendor?.targetMonth ?? '')
     setNotes(vendor?.notes ?? '')
   }, [open, vendor])
 
@@ -185,6 +188,7 @@ function VendorModal({
                 status,
                 budgeted: money(budgeted),
                 actual: money(actual),
+                targetMonth: targetMonth || undefined,
                 notes: notes.trim(),
               })
             }
@@ -238,6 +242,11 @@ function VendorModal({
           </div>
         </div>
         <p className="-mt-1 text-xs text-ink-faint">Cost and paid amounts roll up into the Expenses page.</p>
+        <div>
+          <label className="label">Pay by (month)</label>
+          <input type="month" className="input" value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} />
+          <p className="mt-1.5 text-xs text-ink-faint">Shows this payment under that month in “Spending by month”.</p>
+        </div>
         <div>
           <label className="label">Notes</label>
           <textarea className="input min-h-[60px] resize-none" value={notes} placeholder="Quote, advance paid, contact person…" onChange={(e) => setNotes(e.target.value)} />

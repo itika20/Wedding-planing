@@ -40,17 +40,23 @@ export function Expenses() {
   const eventsWithSpend = bars.filter((b) => b.id !== 'general').length
   const hasExpenses = stats.expenseTaskCount > 0 || stats.vendorCount > 0
 
-  // How much needs spending each month — task expenses bucketed by target month,
-  // in chronological order (tasks with no month set fall into a "No month" row).
+  // How much needs spending each month — task expenses and vendor payments
+  // bucketed by target month, in chronological order (anything with no month
+  // set falls into a "No month" row).
   const monthMap = new Map<string, { budgeted: number; actual: number }>()
+  const addToMonth = (month: string, budgeted: number, actual: number) => {
+    if (budgeted <= 0 && actual <= 0) return
+    const cur = monthMap.get(month) ?? { budgeted: 0, actual: 0 }
+    cur.budgeted += budgeted
+    cur.actual += actual
+    monthMap.set(month, cur)
+  }
   for (const t of tasks) {
     const e = taskExpense(t)
-    if (e.budgeted <= 0 && e.actual <= 0) continue
-    const key = t.targetMonth || ''
-    const cur = monthMap.get(key) ?? { budgeted: 0, actual: 0 }
-    cur.budgeted += e.budgeted
-    cur.actual += e.actual
-    monthMap.set(key, cur)
+    addToMonth(t.targetMonth || '', e.budgeted, e.actual)
+  }
+  for (const v of vendors) {
+    addToMonth(v.targetMonth || '', v.budgeted ?? 0, v.actual ?? 0)
   }
   const byMonth = [...monthMap.entries()]
     .map(([month, v]) => ({ month, ...v }))
